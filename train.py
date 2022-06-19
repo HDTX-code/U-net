@@ -6,7 +6,8 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from utils.utils import get_dataloader_with_aspect_ratio_group
+from utils.dataset import UnetDataset
+from utils.utils import get_dataloader_with_aspect_ratio_group, get_transform, create_model, get_lr_fun
 
 
 def main(args):
@@ -42,8 +43,13 @@ def main(args):
     num_train = len(train_lines)
     num_val = len(val_lines)
 
+    # using compute_mean_std.py
+    mean = (0.709, 0.381, 0.224)
+    std = (0.127, 0.079, 0.043)
 
-
+    # dataset
+    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean, std=std))
+    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean, std=std))
     # 是否按图片相似高宽比采样图片组成batch, 使用的话能够减小训练时所需GPU显存，默认使用
     if args.aspect_ratio_group_factor != -1:
         gen_Freeze = get_dataloader_with_aspect_ratio_group(train_dataset, args.aspect_ratio_group_factor,
@@ -67,8 +73,28 @@ def main(args):
                                           batch_size=1,
                                           shuffle=False,
                                           pin_memory=True,
-                                          num_workers=num_workers,
+                                          num_workers=args.num_workers,
                                           collate_fn=val_dataset.collate_fn)
 
     # model初始化
-    model = get_model(backbone, num_classes + 1, model_path=model_path, pretrained=pretrained).to(device)
+    model = create_model(num_classes=args.num_classes + 1)
+    model.to(device)
+
+    # 获取lr下降函数
+    lr_scheduler_func_Freeze, Init_lr_fit_Freeze, Min_lr_fit_Freeze = get_lr_fun(args.optimizer_type_Freeze,
+                                                                                 args.Freeze_batch_size,
+                                                                                 args.Init_lr,
+                                                                                 args.Init_lr*0.01,
+                                                                                 args.Freeze_Epoch,
+                                                                                 args.lr_decay_type_Freeze)
+    lr_scheduler_func_UnFreeze, Init_lr_fit_UnFreeze, Min_lr_fit_UnFreeze = get_lr_fun(args.optimizer_type_UnFreeze,
+                                                                                       args.UnFreeze_batch_size,
+                                                                                       args.Init_lr,
+                                                                                       args.Init_lr*0.01,
+                                                                                       args.UnFreeze_Epoch,
+                                                                                       args.lr_decay_type_UnFreeze)
+
+    # 记录loss lr map
+    train_loss = []
+    learning_rate = []
+    val_dice = []

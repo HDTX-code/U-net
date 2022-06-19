@@ -34,9 +34,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make train and val')
-    parser.add_argument('--data_path', type=str, default=r"D:\work\project\DATA\Kaggle-uw")
+    parser.add_argument('--data_path', type=str, default=r"/Home/atr2/homefun/zhf/DATA/UW/")
     parser.add_argument('--save_path', type=str, default=r"./weights")
-    parser.add_argument('--csv_path', type=str, default=r"D:\work\project\DATA\Kaggle-uw\data_csv.csv")
+    parser.add_argument('--csv_path', type=str, default=r"/Home/atr2/homefun/zhf/U-net/weights/data_csv.csv")
     parser.add_argument('--num_per', type=float, default=1, help='The proportion of photos used')
     parser.add_argument('--train_per', type=float, default=0.9, help='The proportion of photos train')
     args = parser.parse_args()

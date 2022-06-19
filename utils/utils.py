@@ -1,5 +1,10 @@
-import torch
+import math
+from functools import partial
 
+import torch
+import transforms as T
+
+from net.unet import UNet
 from utils.group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampler
 
 
@@ -20,3 +25,104 @@ def get_dataloader_with_aspect_ratio_group(train_dataset, aspect_ratio_group_fac
                                       num_workers=num_workers,
                                       collate_fn=train_dataset.collate_fn)
     return gen
+
+
+class SegmentationPresetTrain:
+    def __init__(self, base_size, crop_size, hflip_prob=0.5, vflip_prob=0.5,
+                 mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+        min_size = int(0.5 * base_size)
+        max_size = int(1.2 * base_size)
+
+        trans = [T.RandomResize(min_size, max_size)]
+        if hflip_prob > 0:
+            trans.append(T.RandomHorizontalFlip(hflip_prob))
+        if vflip_prob > 0:
+            trans.append(T.RandomVerticalFlip(vflip_prob))
+        trans.extend([
+            T.RandomCrop(crop_size),
+            T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
+        ])
+        self.transforms = T.Compose(trans)
+
+    def __call__(self, img, target):
+        return self.transforms(img, target)
+
+
+class SegmentationPresetEval:
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+        self.transforms = T.Compose([
+            T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, img, target):
+        return self.transforms(img, target)
+
+
+def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+    base_size = 565
+    crop_size = 480
+
+    if train:
+        return SegmentationPresetTrain(base_size, crop_size, mean=mean, std=std)
+    else:
+        return SegmentationPresetEval(mean=mean, std=std)
+
+
+def create_model(num_classes):
+    model = UNet(in_channels=3, num_classes=num_classes, base_c=32)
+    return model
+
+
+# ---------------------------------------------------#
+#   lr 下降函数
+# ---------------------------------------------------#
+def yolox_warm_cos_lr(lr, min_lr, total_iters, warmup_total_iters, warmup_lr_start, no_aug_iter, iters):
+    if iters <= warmup_total_iters:
+        # lr = (lr - warmup_lr_start) * iters / float(warmup_total_iters) + warmup_lr_start
+        lr = (lr - warmup_lr_start) * pow(iters / float(warmup_total_iters), 2) + warmup_lr_start
+    elif iters >= total_iters - no_aug_iter:
+        lr = min_lr
+    else:
+        lr = min_lr + 0.5 * (lr - min_lr) * (
+                1.0 + math.cos(
+            math.pi * (iters - warmup_total_iters) / (total_iters - warmup_total_iters - no_aug_iter))
+        )
+    return lr
+
+
+def step_lr(lr, decay_rate, step_size, iters):
+    if step_size < 1:
+        raise ValueError("step_size must above 1.")
+    n = iters // step_size
+    out_lr = lr * decay_rate ** n
+    return out_lr
+
+
+def get_lr_scheduler(lr_decay_type, lr, min_lr, total_iters, warmup_iters_ratio=0.05, warmup_lr_ratio=0.1,
+                     no_aug_iter_ratio=0.05, step_num=10):
+    if lr_decay_type == "cos":
+        warmup_total_iters = min(max(warmup_iters_ratio * total_iters, 1), 3)
+        warmup_lr_start = max(warmup_lr_ratio * lr, 1e-6)
+        no_aug_iter = min(max(no_aug_iter_ratio * total_iters, 1), 15)
+        func = partial(yolox_warm_cos_lr, lr, min_lr, total_iters, warmup_total_iters, warmup_lr_start, no_aug_iter)
+    else:
+        decay_rate = (min_lr / lr) ** (1 / (step_num - 1))
+        step_size = total_iters / step_num
+        func = partial(step_lr, lr, decay_rate, step_size)
+    return func
+
+
+def get_lr_fun(optimizer_type, batch_size, Init_lr, Min_lr, Epoch, lr_decay_type):
+    # 判断当前batch_size，自适应调整学习率
+    nbs = 16
+    lr_limit_max = 1e-4 if optimizer_type == 'adam' else 5e-2
+    lr_limit_min = 1e-4 if optimizer_type == 'adam' else 5e-4
+    Init_lr_fit = min(max(batch_size / nbs * Init_lr, lr_limit_min), lr_limit_max)
+    Min_lr_fit = min(max(batch_size / nbs * Min_lr, lr_limit_min * 1e-2), lr_limit_max * 1e-2)
+
+    #   获得学习率下降的公式
+    lr_scheduler_func = get_lr_scheduler(lr_decay_type, Init_lr_fit, Min_lr_fit, Epoch)
+
+    return lr_scheduler_func, Init_lr_fit, Min_lr_fit
