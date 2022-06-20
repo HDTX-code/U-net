@@ -4,11 +4,22 @@ import utils.distributed_utils as utils
 from utils.dice_coefficient_loss import build_target, dice_loss
 
 
-def criterion_dice(inputs, target, loss_weight=None, num_classes: int = 2, dice: bool = True, ignore_index: int = -100):
+def criterion(inputs, target, loss_weight=None, num_classes: int = 2,
+                   dice: bool = True, CE: bool = True, ignore_index: int = -100):
     losses = {}
+    alpha = 0.5
+    gamma = 2
     for name, x in inputs.items():
         # 忽略target中值为255的像素，255的像素是目标边缘或者padding填充
-        loss = nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
+        if CE:
+            loss = nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
+        else:
+            log_pt = -nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
+            pt = torch.exp(log_pt)
+            if alpha is not None:
+                log_pt *= alpha
+            loss = -((1 - pt) ** gamma) * log_pt
+            loss = loss.mean()
         if dice is True:
             dice_target = build_target(target, num_classes, ignore_index)
             loss += dice_loss(x, dice_target, multiclass=True, ignore_index=ignore_index)
@@ -58,7 +69,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes,
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
-            loss = criterion_dice(output, target, loss_weight, num_classes=num_classes, ignore_index=255)
+            loss = criterion(output, target, loss_weight, num_classes=num_classes, ignore_index=255)
 
         optimizer.zero_grad()
         if scaler is not None:
