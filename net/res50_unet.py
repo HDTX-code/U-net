@@ -74,8 +74,6 @@ class Res50UNet(nn.Module):
                                                                          'layer2': '2',
                                                                          'layer3': '3',
                                                                          'layer4': '4'})
-        print(self.backbone)
-        print(self.backbone(torch.ones([1, 3, 224, 224]))['0'].shape)
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
         self.up1 = Up(c, self.stage_out_channels[3])
@@ -85,6 +83,7 @@ class Res50UNet(nn.Module):
         self.up3 = Up(c, self.stage_out_channels[1])
         c = self.stage_out_channels[1] + self.stage_out_channels[0]
         self.up4 = Up(c, self.stage_out_channels[0])
+        self.up5 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.conv = OutConv(self.stage_out_channels[0], num_classes=num_classes)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -93,12 +92,13 @@ class Res50UNet(nn.Module):
         x = self.up2(x, backbone_out['2'])
         x = self.up3(x, backbone_out['1'])
         x = self.up4(x, backbone_out['0'])
+        x = self.up5(x)
         x = self.conv(x)
 
         return {"out": x}
 
 
-if __name__ == '__main__':
-    res = Res50UNet(21)
-    print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
+# if __name__ == '__main__':
+#     res = Res50UNet(21)
+#     print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
 

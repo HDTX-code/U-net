@@ -3,6 +3,7 @@ from functools import partial
 
 import torch
 import utils.transforms as T
+from net.res50_unet import Res50UNet
 
 from net.unet import UNet
 from net.vgg_unet import VGG16UNet
@@ -74,6 +75,8 @@ def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
 def create_model(num_classes, backbone, pretrained):
     if backbone == 'vgg':
         model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained)
+    elif backbone == 'res50':
+        model = Res50UNet(num_classes=num_classes, pretrain_backbone=pretrained)
     else:
         model = UNet(in_channels=3, num_classes=num_classes, base_c=32)
     return model

@@ -173,6 +173,7 @@ def main(args):
                     if args.save_best is True:
                         if best_dice < val_dice[-1]:
                             torch.save(save_file, os.path.join(log_dir, "best_model.pth"))
+                            print('save best dice {}'.format(val_dice[-1]))
                             best_dice = val_dice[-1]
                     else:
                         torch.save(save_file, os.path.join(log_dir, "epoch_{}_dice_{}.pth".format(epoch, dice)))
@@ -254,7 +255,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training parameter setting')
-    parser.add_argument('--backbone', type=str, default='vgg')
+    parser.add_argument('--backbone', type=str, default='res50')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--save_dir', type=str, default="weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
@@ -263,8 +264,8 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer_type_Freeze', type=str, default='adam')
     parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam')
     parser.add_argument('--num_classes', type=int, default=3)
-    parser.add_argument('--Freeze_batch_size', type=int, default=18)
-    parser.add_argument('--UnFreeze_batch_size', type=int, default=14)
+    parser.add_argument('--Freeze_batch_size', type=int, default=26)
+    parser.add_argument('--UnFreeze_batch_size', type=int, default=18)
     parser.add_argument('--aspect_ratio_group_factor', type=int, default=3)
     parser.add_argument('--lr_decay_type_Freeze', type=str, default='cos', help="'step' or 'cos'")
     parser.add_argument('--lr_decay_type_UnFreeze', type=str, default='cos', help="'step' or 'cos'")
@@ -272,8 +273,8 @@ if __name__ == '__main__':
     parser.add_argument('--Init_lr', type=float, default=1e-4, help="max lr")
     parser.add_argument('--momentum', type=float, default=0.9, help="momentum")
     parser.add_argument('--weight_decay', type=float, default=0, help="adam is 0")
-    parser.add_argument('--Freeze_Epoch', type=int, default=18, help="Freeze_Epoch")
-    parser.add_argument('--UnFreeze_Epoch', type=int, default=36, help="UnFreeze_Epoch")
+    parser.add_argument('--Freeze_Epoch', type=int, default=24, help="Freeze_Epoch")
+    parser.add_argument('--UnFreeze_Epoch', type=int, default=48, help="UnFreeze_Epoch")
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
     parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
     parser.add_argument('--save_best', default=True, action='store_true', help="pretrained")
