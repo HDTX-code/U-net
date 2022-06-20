@@ -18,7 +18,7 @@ def main(args):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #                       训练相关准备                            #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
+    print(args)
     time_str = datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d%H%M%S')
     log_dir = os.path.join(args.save_dir, "loss_" + str(time_str))
     # 检查保存文件夹是否存在
@@ -131,7 +131,7 @@ def main(args):
         for epoch in range(args.Init_Epoch + 1, args.Freeze_Epoch + 1):
             set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
-                                            print_freq=int((num_train / args.Freeze_batch_size) // 5), scaler=scaler)
+                                            print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler)
             confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
             val_info = str(confmat)
             train_loss.append(mean_loss.item())
@@ -253,7 +253,7 @@ if __name__ == '__main__':
     parser.add_argument('--UnFreeze_Epoch', type=int, default=24, help="UnFreeze_Epoch")
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
     parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
-    parser.add_argument('--amp', default=False, action='store_true', help="amp or Not")
+    parser.add_argument('--amp', default=True, action='store_true', help="amp or Not")
     args = parser.parse_args()
 
     main(args)

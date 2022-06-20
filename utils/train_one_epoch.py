@@ -4,22 +4,11 @@ import utils.distributed_utils as utils
 from utils.dice_coefficient_loss import build_target, dice_loss
 
 
-def criterion(inputs, target, loss_weight=None, num_classes: int = 2,
-                   dice: bool = True, CE: bool = True, ignore_index: int = -100):
+def criterion(inputs, target, loss_weight=None, num_classes: int = 2, dice: bool = True, ignore_index: int = -100):
     losses = {}
-    alpha = 0.5
-    gamma = 2
     for name, x in inputs.items():
         # 忽略target中值为255的像素，255的像素是目标边缘或者padding填充
-        if CE:
-            loss = nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
-        else:
-            log_pt = -nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
-            pt = torch.exp(log_pt)
-            if alpha is not None:
-                log_pt *= alpha
-            loss = -((1 - pt) ** gamma) * log_pt
-            loss = loss.mean()
+        loss = nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
         if dice is True:
             dice_target = build_target(target, num_classes, ignore_index)
             loss += dice_loss(x, dice_target, multiclass=True, ignore_index=ignore_index)
