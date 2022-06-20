@@ -2,9 +2,10 @@ import math
 from functools import partial
 
 import torch
-import transforms as T
+import utils.transforms as T
 
 from net.unet import UNet
+from net.vgg_unet import VGG16UNet
 from utils.group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampler
 
 
@@ -70,8 +71,11 @@ def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
         return SegmentationPresetEval(mean=mean, std=std)
 
 
-def create_model(num_classes):
-    model = UNet(in_channels=3, num_classes=num_classes, base_c=32)
+def create_model(num_classes, backbone, pretrained):
+    if backbone == 'vgg':
+        model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained)
+    else:
+        model = UNet(in_channels=3, num_classes=num_classes, base_c=32)
     return model
 
 
@@ -126,3 +130,9 @@ def get_lr_fun(optimizer_type, batch_size, Init_lr, Min_lr, Epoch, lr_decay_type
     lr_scheduler_func = get_lr_scheduler(lr_decay_type, Init_lr_fit, Min_lr_fit, Epoch)
 
     return lr_scheduler_func, Init_lr_fit, Min_lr_fit
+
+
+def set_optimizer_lr(optimizer, lr_scheduler_func, epoch):
+    lr = lr_scheduler_func(epoch)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
