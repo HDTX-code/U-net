@@ -9,13 +9,6 @@
           </mappings>
         </serverdata>
       </paths>
-      <paths name="atr2@192.168.153.149:22 (2)">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/Home/atr2/homefun/zhf/U-net" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
