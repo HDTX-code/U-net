@@ -74,6 +74,7 @@ class Res50UNet(nn.Module):
                                                                          'layer2': '2',
                                                                          'layer3': '3',
                                                                          'layer4': '4'})
+        print(self.backbone)
         print(self.backbone(torch.ones([1, 3, 224, 224]))['0'].shape)
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
