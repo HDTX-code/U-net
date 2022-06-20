@@ -18,7 +18,6 @@ def main(args):
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #                       训练相关准备                            #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    print(args)
     time_str = datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d%H%M%S')
     log_dir = os.path.join(args.save_dir, "loss_" + str(time_str))
     # 检查保存文件夹是否存在
@@ -110,6 +109,7 @@ def main(args):
     best_dice = 0.
     start_time = time.time()
 
+    print(args)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #  first frozen backbone train 5 epochs                       #
     #  首先冻结前置特征提取网络权重（backbone），训练rpn以及最终预测网络部分 #
