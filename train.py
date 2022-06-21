@@ -207,7 +207,7 @@ def main(args):
                                         cls_weights=args.cls_weights)
         confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
         val_info = str(confmat)
-        train_loss.append(mean_loss.item())
+        train_loss.append(mean_loss)
         learning_rate.append(lr)
         val_dice.append(dice)
         print(val_info)
