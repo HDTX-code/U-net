@@ -64,8 +64,8 @@ class SegmentationPresetEval:
         ])
 
     def __call__(self, img, target):
-        img = F.resize(img, self.size)
-        target = F.resize(target, self.size, interpolation=torchvision.transforms.InterpolationMode.NEAREST)
+        img = F.resize(img, (self.size, self.size))
+        target = F.resize(target, (self.size, self.size), interpolation=torchvision.transforms.InterpolationMode.NEAREST)
         return self.transforms(img, target)
 
 

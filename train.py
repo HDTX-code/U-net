@@ -3,6 +3,7 @@ import os
 import datetime
 import time
 
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -39,6 +40,11 @@ def main(args):
     # 混合精度
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
+    # 权重
+    if args.cls_weights is None:
+        args.cls_weights = np.ones([2], np.float32)
+    else:
+        args.cls_weights = np.array(args.cls_weights, np.float32)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #                 dataset dataloader model                    #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -133,10 +139,11 @@ def main(args):
         for epoch in range(args.Init_Epoch + 1, args.Freeze_Epoch + 1):
             set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
-                                            print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler)
+                                            print_freq=int((num_train / args.Freeze_batch_size) // 5), scaler=scaler,
+                                            cls_weights=args.cls_weights)
             confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
             val_info = str(confmat)
-            train_loss.append(mean_loss.item())
+            train_loss.append(mean_loss)
             learning_rate.append(lr)
             val_dice.append(dice)
             print(val_info)
@@ -191,7 +198,8 @@ def main(args):
     for epoch in range(UnFreeze_start_Epoch, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
         set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch)
         mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
-                                        print_freq=int((num_train / args.Freeze_batch_size) // 5), scaler=scaler)
+                                        print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler,
+                                        cls_weights=args.cls_weights)
         confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
         val_info = str(confmat)
         train_loss.append(mean_loss.item())
@@ -238,9 +246,9 @@ if __name__ == '__main__':
     parser.add_argument('--backbone', type=str, default='res50')
     parser.add_argument('--save_dir', type=str, default="./weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
-    parser.add_argument('--GPU', type=int, default=2, help='GPU_ID')
+    parser.add_argument('--GPU', type=int, default=6, help='GPU_ID')
     parser.add_argument('--size', type=int, default=256, help='pic size')
-    parser.add_argument('--train', type=str, default=r"weights/train.txt", help="train_txt_path")
+    parser.add_argument('--train', type=str, default=r"weights/val.txt", help="train_txt_path")
     parser.add_argument('--val', type=str, default=r"weights/val.txt", help="val_txt_path")
     parser.add_argument('--optimizer_type_Freeze', type=str, default='adam', help='adam or sgd')
     parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam', help='adam or sgd')
@@ -259,6 +267,7 @@ if __name__ == '__main__':
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
     parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
     parser.add_argument('--amp', default=True, action='store_true', help="amp or Not")
+    parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
     args = parser.parse_args()
 
     main(args)

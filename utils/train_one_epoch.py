@@ -25,8 +25,8 @@ def criterion(inputs, target, loss_weight=None, num_classes: int = 2, dice: bool
 
 def evaluate(model, data_loader, device, num_classes):
     model.eval()
-    confmat = utils.ConfusionMatrix(num_classes)
-    dice = utils.DiceCoefficient(num_classes=num_classes, ignore_index=255)
+    confmat = utils.ConfusionMatrix(2)
+    dice = utils.DiceCoefficient(num_classes=2, ignore_index=255)
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
     with torch.no_grad():
@@ -45,24 +45,21 @@ def evaluate(model, data_loader, device, num_classes):
     return confmat, dice.value.item()
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes,
+def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, cls_weights,
                     print_freq=10, scaler=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
 
-    if num_classes == 2:
-        # 设置cross_entropy中背景和前景的loss权重(根据自己的数据集进行设置)
-        loss_weight = torch.as_tensor([1.0, 2.0], device=device)
-    else:
-        loss_weight = None
+    with torch.no_grad():
+        cls_weights = torch.from_numpy(cls_weights).type(torch.FloatTensor).to(device)
 
     for image, target in metric_logger.log_every(data_loader, print_freq, header):
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
-            loss = criterion(output, target, loss_weight, num_classes=num_classes, ignore_index=255)
+            loss = criterion(output, target, num_classes=num_classes, ignore_index=255, loss_weight=cls_weights)
 
         optimizer.zero_grad()
         if scaler is not None:
