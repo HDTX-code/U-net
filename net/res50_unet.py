@@ -83,7 +83,11 @@ class Res50UNet(nn.Module):
         self.up3 = Up(c, self.stage_out_channels[1], bilinear=bilinear)
         c = self.stage_out_channels[1] + self.stage_out_channels[0]
         self.up4 = Up(c, self.stage_out_channels[0], bilinear=bilinear)
-        self.up5 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        if bilinear:
+            self.up5 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        else:
+            self.up5 = nn.ConvTranspose2d(self.stage_out_channels[0],
+                                          self.stage_out_channels[0], kernel_size=2, stride=2)
         self.conv = OutConv(self.stage_out_channels[0], num_classes=num_classes)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
