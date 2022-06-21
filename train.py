@@ -164,11 +164,13 @@ def main(args):
 
             if args.save_best is True:
                 if best_dice < val_dice[-1]:
-                    torch.save(save_file, "save_weights/best_model.pth")
+                    torch.save(save_file, os.path.join(log_dir,
+                                                       "best_model_{}.pth".format(args.backbone)))
                     best_dice = val_dice[-1]
                     print('save best dice {}'.format(val_dice[-1]))
             else:
-                torch.save(save_file, "save_weights/dice_{}.pth".format(dice))
+                torch.save(save_file, os.path.join(log_dir,
+                                                   "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #  second unfrozen backbone and train all network     #
@@ -226,11 +228,13 @@ def main(args):
 
         if args.save_best is True:
             if best_dice < val_dice[-1]:
-                torch.save(save_file, "save_weights/best_model.pth")
+                torch.save(save_file, os.path.join(log_dir,
+                                                   "best_model_{}.pth".format(args.backbone)))
                 best_dice = val_dice[-1]
                 print('save best dice {}'.format(val_dice[-1]))
         else:
-            torch.save(save_file, "save_weights/dice_{}.pth".format(dice))
+            torch.save(save_file, os.path.join(log_dir,
+                                               "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
