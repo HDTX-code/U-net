@@ -56,8 +56,10 @@ def main(args):
     std = (0.127, 0.079, 0.043)
 
     # dataset
-    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean, std=std))
-    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean, std=std))
+    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean,
+                                                                                  std=std, crop_size=args.size))
+    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean,
+                                                                               std=std, crop_size=args.size))
 
     print("Creating data loaders")
     if args.distributed:
@@ -96,7 +98,7 @@ def main(args):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
         # 获取lr下降函数
@@ -132,7 +134,7 @@ def main(args):
         if args.Freeze_Epoch != 0 and args.resume == '':
             for param in model_without_ddp.backbone.parameters():
                 param.requires_grad = False
-            params = [p for p in model_without_ddp.parameters() if p.requires_grad]
+            params = [p for p in model_without_ddp.parameters()]
 
             #   根据optimizer_type选择优化器
             optimizer = {
@@ -186,8 +188,7 @@ def main(args):
 
         for param in model_without_ddp.backbone.parameters():
             param.requires_grad = True
-        params = [p for p in model_without_ddp.parameters() if p.requires_grad]
-
+        params = [p for p in model_without_ddp.parameters()]
         #   根据optimizer_type选择优化器
         optimizer = {
             'adam': optim.Adam(params, Init_lr_fit_UnFreeze, betas=(args.momentum, 0.999), weight_decay=0),
@@ -238,10 +239,13 @@ def main(args):
 
                 if args.save_best is True:
                     if best_dice < val_dice[-1]:
-                        torch.save(save_file, os.path.join(log_dir, "best_model.pth"))
+                        torch.save(save_file, os.path.join(log_dir,
+                                                           "best_model_{}.pth".format(args.backbone)))
                         best_dice = val_dice[-1]
+                        print('save best dice {}'.format(val_dice[-1]))
                 else:
-                    torch.save(save_file, os.path.join(log_dir, "epoch_{}_dice_{}.pth".format(epoch, dice)))
+                    torch.save(save_file, os.path.join(log_dir,
+                                                       "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
         print("---------End UnFreeze Train---------")
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -257,6 +261,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training parameter setting')
     parser.add_argument('--backbone', type=str, default='res50')
     parser.add_argument('--device', default='cuda', help='device')
+    parser.add_argument('--size', type=int, default=256, help='pic size')
     parser.add_argument('--save_dir', type=str, default="weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
     parser.add_argument('--train', type=str, default=r"weights/train.txt", help="train_txt_path")

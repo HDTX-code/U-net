@@ -55,8 +55,10 @@ def main(args):
     std = (0.127, 0.079, 0.043)
 
     # dataset
-    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean, std=std))
-    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean, std=std))
+    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean,
+                                                                                  std=std, crop_size=args.size))
+    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean,
+                                                                               std=std, crop_size=args.size))
     # 是否按图片相似高宽比采样图片组成batch, 使用的话能够减小训练时所需GPU显存，默认使用
     if args.aspect_ratio_group_factor != -1:
         gen_Freeze = get_dataloader_with_aspect_ratio_group(train_dataset, args.aspect_ratio_group_factor,
@@ -156,6 +158,7 @@ def main(args):
                 if best_dice < val_dice[-1]:
                     torch.save(save_file, "save_weights/best_model.pth")
                     best_dice = val_dice[-1]
+                    print('save best dice {}'.format(val_dice[-1]))
             else:
                 torch.save(save_file, "save_weights/dice_{}.pth".format(dice))
 
@@ -216,6 +219,7 @@ def main(args):
             if best_dice < val_dice[-1]:
                 torch.save(save_file, "save_weights/best_model.pth")
                 best_dice = val_dice[-1]
+                print('save best dice {}'.format(val_dice[-1]))
         else:
             torch.save(save_file, "save_weights/dice_{}.pth".format(dice))
 
@@ -231,14 +235,15 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training parameter setting')
-    parser.add_argument('--backbone', type=str, default='vgg')
-    parser.add_argument('--save_dir', type=str, default="weights")
+    parser.add_argument('--backbone', type=str, default='res50')
+    parser.add_argument('--save_dir', type=str, default="./weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
-    parser.add_argument('--GPU', type=int, default=6, help='GPU_ID')
+    parser.add_argument('--GPU', type=int, default=2, help='GPU_ID')
+    parser.add_argument('--size', type=int, default=256, help='pic size')
     parser.add_argument('--train', type=str, default=r"weights/train.txt", help="train_txt_path")
     parser.add_argument('--val', type=str, default=r"weights/val.txt", help="val_txt_path")
-    parser.add_argument('--optimizer_type_Freeze', type=str, default='adam')
-    parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam')
+    parser.add_argument('--optimizer_type_Freeze', type=str, default='adam', help='adam or sgd')
+    parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam', help='adam or sgd')
     parser.add_argument('--num_classes', type=int, default=3)
     parser.add_argument('--Freeze_batch_size', type=int, default=12)
     parser.add_argument('--UnFreeze_batch_size', type=int, default=24)
