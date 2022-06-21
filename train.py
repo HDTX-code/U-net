@@ -137,6 +137,7 @@ def main(args):
                              weight_decay=args.weight_decay)
         }[args.optimizer_type_Freeze]
 
+        print("---------start Freeze Train---------")
         for epoch in range(args.Init_Epoch + 1, args.Freeze_Epoch + 1):
             set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
@@ -171,7 +172,7 @@ def main(args):
             else:
                 torch.save(save_file, os.path.join(log_dir,
                                                    "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
-
+        print("---------End Freeze Train---------")
     # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #  second unfrozen backbone and train all network     #
     # 解冻前置特征提取网络权重（backbone），接着训练整个网络权重   #
@@ -198,6 +199,7 @@ def main(args):
 
     UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume else args.Freeze_Epoch + 1
 
+    print("---------start UnFreeze Train---------")
     for epoch in range(UnFreeze_start_Epoch, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
         set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch)
         mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
@@ -236,6 +238,7 @@ def main(args):
             torch.save(save_file, os.path.join(log_dir,
                                                "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
 
+    print("---------End UnFreeze Train---------")
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print("training time {}".format(total_time_str))
