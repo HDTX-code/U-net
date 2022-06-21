@@ -82,7 +82,7 @@ def create_model(num_classes, backbone, pretrained, bilinear):
         model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
     elif backbone == 'res50':
         model = Res50UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
-    elif backbone == 'eff_b5':
+    elif backbone == 'eff_b7':
         model = EfficientNetUNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
     else:
         model = UNet(in_channels=3, num_classes=num_classes, base_c=32, bilinear=bilinear)

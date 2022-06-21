@@ -6,7 +6,6 @@ import torch.nn as nn
 import torchvision.models
 from torch import Tensor
 
-# from .unet import Up, OutConv
 from net.unet import Up, OutConv
 
 
@@ -66,15 +65,15 @@ class IntermediateLayerGetter(nn.ModuleDict):
 class EfficientNetUNet(nn.Module):
     def __init__(self, num_classes, pretrain_backbone: bool = False, bilinear: bool = True):
         super(EfficientNetUNet, self).__init__()
-        backbone = torchvision.models.efficientnet_b5(pretrained=pretrain_backbone)
+        backbone = torchvision.models.efficientnet_b7(pretrained=pretrain_backbone)
         backbone = backbone.features
-        self.stage_out_channels = [48, 40, 128, 304, 2048]
+        self.stage_out_channels = [64, 48, 160, 384, 2560]
         self.backbone = IntermediateLayerGetter(backbone, return_layers={'0': '0',
                                                                          '2': '1',
                                                                          '4': '2',
                                                                          '6': '3',
                                                                          '8': '4'})
-        # print(self.backbone(torch.ones([1, 3, 224, 224]))['5'].shape)
+        # print(self.backbone(torch.ones([1, 3, 224, 224]))['4'].shape)
         # print(backbone)
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
@@ -104,6 +103,6 @@ class EfficientNetUNet(nn.Module):
         return {"out": x}
 
 
-# if __name__ == '__main__':
-#     res = EfficientNetUNet(21)
-#     print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
+if __name__ == '__main__':
+    res = EfficientNetUNet(21)
+    print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
