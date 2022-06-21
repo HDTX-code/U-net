@@ -65,7 +65,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
 
 
 class Res50UNet(nn.Module):
-    def __init__(self, num_classes, pretrain_backbone: bool = False):
+    def __init__(self, num_classes, pretrain_backbone: bool = False, bilinear: bool = True):
         super(Res50UNet, self).__init__()
         backbone = torchvision.models.resnet50(pretrained=pretrain_backbone)
         self.stage_out_channels = [64, 256, 512, 1024, 2048]
@@ -76,13 +76,13 @@ class Res50UNet(nn.Module):
                                                                          'layer4': '4'})
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
-        self.up1 = Up(c, self.stage_out_channels[3])
+        self.up1 = Up(c, self.stage_out_channels[3], bilinear=bilinear)
         c = self.stage_out_channels[3] + self.stage_out_channels[2]
-        self.up2 = Up(c, self.stage_out_channels[2])
+        self.up2 = Up(c, self.stage_out_channels[2], bilinear=bilinear)
         c = self.stage_out_channels[2] + self.stage_out_channels[1]
-        self.up3 = Up(c, self.stage_out_channels[1])
+        self.up3 = Up(c, self.stage_out_channels[1], bilinear=bilinear)
         c = self.stage_out_channels[1] + self.stage_out_channels[0]
-        self.up4 = Up(c, self.stage_out_channels[0])
+        self.up4 = Up(c, self.stage_out_channels[0], bilinear=bilinear)
         self.up5 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.conv = OutConv(self.stage_out_channels[0], num_classes=num_classes)
 

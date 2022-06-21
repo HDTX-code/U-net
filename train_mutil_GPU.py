@@ -97,7 +97,8 @@ def main(args):
     print("Creating model")
     # create model num_classes equal background + foreground classesc
     # model初始化
-    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone, pretrained=args.pretrained)
+    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone,
+                         pretrained=args.pretrained, bilinear=args.bilinear)
     model.to(device)
 
     if args.sync_bn:
@@ -290,7 +291,8 @@ if __name__ == '__main__':
     parser.add_argument('--UnFreeze_Epoch', type=int, default=48, help="UnFreeze_Epoch")
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
     parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
-    parser.add_argument('--save_best', default=True, action='store_true', help="pretrained")
+    parser.add_argument('--bilinear', default=False, action='store_true', help="bilinear or conv")
+    parser.add_argument('--save_best', default=True, action='store_true', help="save best or save all")
     parser.add_argument('--amp', default=True, action='store_true', help="amp or Not")
     # 分布式进程数
     parser.add_argument('--world-size', default=1, type=int, help='number of distributed processes')

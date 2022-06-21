@@ -77,15 +77,15 @@ def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), 
         return SegmentationPresetEval(mean=mean, std=std, size=crop_size)
 
 
-def create_model(num_classes, backbone, pretrained):
+def create_model(num_classes, backbone, pretrained, bilinear):
     if backbone == 'vgg':
-        model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained)
+        model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
     elif backbone == 'res50':
-        model = Res50UNet(num_classes=num_classes, pretrain_backbone=pretrained)
+        model = Res50UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
     elif backbone == 'eff_b5':
-        model = EfficientNetUNet(num_classes=num_classes, pretrain_backbone=pretrained)
+        model = EfficientNetUNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
     else:
-        model = UNet(in_channels=3, num_classes=num_classes, base_c=32)
+        model = UNet(in_channels=3, num_classes=num_classes, base_c=32, bilinear=bilinear)
     return model
 
 

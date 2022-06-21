@@ -92,7 +92,8 @@ def main(args):
                                           collate_fn=val_dataset.collate_fn)
 
     # model初始化
-    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone, pretrained=args.pretrained)
+    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone,
+                         pretrained=args.pretrained, bilinear=args.bilinear)
     model.to(device)
 
     # 获取lr下降函数
@@ -267,6 +268,8 @@ if __name__ == '__main__':
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
     parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
     parser.add_argument('--amp', default=True, action='store_true', help="amp or Not")
+    parser.add_argument('--save_best', default=True, action='store_true', help="save best or save all")
+    parser.add_argument('--bilinear', default=False, action='store_true', help="bilinear or conv")
     parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
     args = parser.parse_args()
 
