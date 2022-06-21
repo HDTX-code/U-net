@@ -3,6 +3,7 @@ import math
 from functools import partial
 
 import torch
+import torchvision
 from torchvision.transforms import functional as F
 import utils.transforms as T
 from net.EfficientNet_unet import EfficientNetUNet
@@ -64,7 +65,7 @@ class SegmentationPresetEval:
 
     def __call__(self, img, target):
         img = F.resize(img, self.size)
-        target = F.resize(target, self.size, interpolation=T.InterpolationMode.NEAREST)
+        target = F.resize(target, self.size, interpolation=torchvision.transforms.InterpolationMode.NEAREST)
         return self.transforms(img, target)
 
 
