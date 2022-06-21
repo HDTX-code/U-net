@@ -215,7 +215,7 @@ def main(args):
         UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume else args.Freeze_Epoch + 1
 
         print("---------start UnFreeze Train---------")
-        for epoch in range(UnFreeze_start_Epoch + 1, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
+        for epoch in range(UnFreeze_start_Epoch, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
             if args.distributed:
                 train_sampler.set_epoch(epoch - args.Freeze_Epoch)
             set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch)
