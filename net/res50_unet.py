@@ -65,7 +65,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
 
 
 class Res50UNet(nn.Module):
-    def __init__(self, num_classes, pretrain_backbone: bool = False):
+    def __init__(self, num_classes, pretrain_backbone: bool = False, bilinear: bool = True):
         super(Res50UNet, self).__init__()
         backbone = torchvision.models.resnet50(pretrained=pretrain_backbone)
         self.stage_out_channels = [64, 256, 512, 1024, 2048]
@@ -74,16 +74,20 @@ class Res50UNet(nn.Module):
                                                                          'layer2': '2',
                                                                          'layer3': '3',
                                                                          'layer4': '4'})
-        print(self.backbone(torch.ones([1, 3, 224, 224]))['0'].shape)
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
-        self.up1 = Up(c, self.stage_out_channels[3])
+        self.up1 = Up(c, self.stage_out_channels[3], bilinear=bilinear)
         c = self.stage_out_channels[3] + self.stage_out_channels[2]
-        self.up2 = Up(c, self.stage_out_channels[2])
+        self.up2 = Up(c, self.stage_out_channels[2], bilinear=bilinear)
         c = self.stage_out_channels[2] + self.stage_out_channels[1]
-        self.up3 = Up(c, self.stage_out_channels[1])
+        self.up3 = Up(c, self.stage_out_channels[1], bilinear=bilinear)
         c = self.stage_out_channels[1] + self.stage_out_channels[0]
-        self.up4 = Up(c, self.stage_out_channels[0])
+        self.up4 = Up(c, self.stage_out_channels[0], bilinear=bilinear)
+        if bilinear:
+            self.up5 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        else:
+            self.up5 = nn.ConvTranspose2d(self.stage_out_channels[0],
+                                          self.stage_out_channels[0], kernel_size=2, stride=2)
         self.conv = OutConv(self.stage_out_channels[0], num_classes=num_classes)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -92,12 +96,13 @@ class Res50UNet(nn.Module):
         x = self.up2(x, backbone_out['2'])
         x = self.up3(x, backbone_out['1'])
         x = self.up4(x, backbone_out['0'])
+        x = self.up5(x)
         x = self.conv(x)
 
         return {"out": x}
 
 
 if __name__ == '__main__':
-    res = Res50UNet(21)
+    res = Res50UNet(21, bilinear=True)
     print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
 
