@@ -8,13 +8,10 @@ def criterion(inputs, target, loss_weight=None, num_classes: int = 2, dice: bool
     losses = {}
     for name, x in inputs.items():
         # 忽略target中值为255的像素，255的像素是目标边缘或者padding填充
-        loss = 0
-        for item in range(target.shape[-1]):
-            loss += nn.functional.cross_entropy(x[:, [0, item + 1], ...], target[..., item],
-                                                ignore_index=ignore_index, weight=loss_weight)
-            if dice is True:
-                dice_target = build_target(target[..., item], 2, ignore_index)
-                loss += dice_loss(x[:, [0, item + 1], ...], dice_target, multiclass=True, ignore_index=ignore_index)
+        loss = nn.functional.cross_entropy(x, target, ignore_index=ignore_index, weight=loss_weight)
+        if dice is True:
+            dice_target = build_target(target, num_classes, ignore_index)
+            loss += dice_loss(x, dice_target, multiclass=True, ignore_index=ignore_index)
         losses[name] = loss
 
     if len(losses) == 1:
@@ -25,8 +22,8 @@ def criterion(inputs, target, loss_weight=None, num_classes: int = 2, dice: bool
 
 def evaluate(model, data_loader, device, num_classes):
     model.eval()
-    confmat = utils.ConfusionMatrix(2)
-    dice = utils.DiceCoefficient(num_classes=2, ignore_index=255)
+    confmat = utils.ConfusionMatrix(num_classes)
+    dice = utils.DiceCoefficient(num_classes=num_classes, ignore_index=255)
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
     with torch.no_grad():
@@ -35,9 +32,8 @@ def evaluate(model, data_loader, device, num_classes):
             output = model(image)
             output = output['out']
 
-            for item in range(target.shape[-1]):
-                confmat.update(target[..., item].flatten(), output[:, [0, item + 1], ...].argmax(1).flatten())
-                dice.update(output[:, [0, item + 1]], target[..., item])
+            confmat.update(target.flatten(), output.argmax(1).flatten())
+            dice.update(output, target)
 
         confmat.reduce_from_all_processes()
         dice.reduce_from_all_processes()
@@ -73,4 +69,4 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, c
         lr = optimizer.param_groups[0]["lr"]
         metric_logger.update(loss=loss.item(), lr=lr)
 
-    return metric_logger.meters["loss"].global_avg, lr
+        return metric_logger.meters["loss"].global_avg, lr
