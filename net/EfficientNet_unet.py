@@ -102,5 +102,5 @@ class EfficientNetUNet(nn.Module):
 
 
 if __name__ == '__main__':
-    res = EfficientNetUNet(21)
+    res = EfficientNetUNet(21, bilinear=True)
     print(res(torch.ones([1, 3, 224, 224]))['out'].shape)

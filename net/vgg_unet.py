@@ -5,7 +5,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 from torchvision.models import vgg16_bn
-from .unet import Up, OutConv
+
+from net.unet import Up, OutConv
 
 
 class IntermediateLayerGetter(nn.ModuleDict):
@@ -97,3 +98,8 @@ class VGG16UNet(nn.Module):
         x = self.conv(x)
 
         return {"out": x}
+
+
+if __name__ == '__main__':
+    res = VGG16UNet(21, bilinear=True)
+    print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
