@@ -38,6 +38,8 @@ class Up(nn.Module):
 
     def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         x1 = self.up(x1)
+        # print(x1.shape)
+        # print(x2.shape)
         # [N, C, H, W]
         diff_y = x2.size()[2] - x1.size()[2]
         diff_x = x2.size()[3] - x1.size()[3]
