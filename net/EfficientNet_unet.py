@@ -67,14 +67,12 @@ class EfficientNetUNet(nn.Module):
         super(EfficientNetUNet, self).__init__()
         backbone = torchvision.models.efficientnet_b7(pretrained=pretrain_backbone)
         backbone = backbone.features
-        self.stage_out_channels = [64, 48, 160, 384, 2560]
+        self.stage_out_channels = [64, 48, 80, 224, 2560]
         self.backbone = IntermediateLayerGetter(backbone, return_layers={'0': '0',
                                                                          '2': '1',
-                                                                         '4': '2',
-                                                                         '6': '3',
+                                                                         '3': '2',
+                                                                         '5': '3',
                                                                          '8': '4'})
-        # print(self.backbone(torch.ones([1, 3, 224, 224]))['4'].shape)
-        # print(backbone)
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
         self.up1 = Up(c, self.stage_out_channels[3], bilinear=bilinear)
@@ -104,5 +102,5 @@ class EfficientNetUNet(nn.Module):
 
 
 if __name__ == '__main__':
-    res = EfficientNetUNet(21)
+    res = EfficientNetUNet(21, bilinear=True)
     print(res(torch.ones([1, 3, 224, 224]))['out'].shape)

@@ -102,7 +102,7 @@ class Res50UNet(nn.Module):
         return {"out": x}
 
 
-# if __name__ == '__main__':
-#     res = Res50UNet(21, bilinear=False)
-#     print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
+if __name__ == '__main__':
+    res = Res50UNet(21, bilinear=True)
+    print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
 
