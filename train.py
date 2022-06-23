@@ -3,6 +3,7 @@ import os
 import datetime
 import time
 
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -39,6 +40,11 @@ def main(args):
     # 混合精度
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
+    # 权重
+    if args.cls_weights is None:
+        args.cls_weights = np.ones([2], np.float32)
+    else:
+        args.cls_weights = np.array(args.cls_weights, np.float32)
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #                 dataset dataloader model                    #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -55,8 +61,10 @@ def main(args):
     std = (0.127, 0.079, 0.043)
 
     # dataset
-    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean, std=std))
-    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean, std=std))
+    train_dataset = UnetDataset(train_lines, train=True, transforms=get_transform(train=True, mean=mean,
+                                                                                  std=std, crop_size=args.size))
+    val_dataset = UnetDataset(val_lines, train=False, transforms=get_transform(train=False, mean=mean,
+                                                                               std=std, crop_size=args.size))
     # 是否按图片相似高宽比采样图片组成batch, 使用的话能够减小训练时所需GPU显存，默认使用
     if args.aspect_ratio_group_factor != -1:
         gen_Freeze = get_dataloader_with_aspect_ratio_group(train_dataset, args.aspect_ratio_group_factor,
@@ -84,7 +92,8 @@ def main(args):
                                           collate_fn=val_dataset.collate_fn)
 
     # model初始化
-    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone, pretrained=args.pretrained)
+    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone,
+                         pretrained=args.pretrained, bilinear=args.bilinear)
     model.to(device)
 
     # 获取lr下降函数
@@ -130,13 +139,15 @@ def main(args):
                              weight_decay=args.weight_decay)
         }[args.optimizer_type_Freeze]
 
+        print("---------start Freeze Train---------")
         for epoch in range(args.Init_Epoch + 1, args.Freeze_Epoch + 1):
             set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
-                                            print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler)
+                                            print_freq=int((num_train / args.Freeze_batch_size) // 5), scaler=scaler,
+                                            cls_weights=args.cls_weights)
             confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
             val_info = str(confmat)
-            train_loss.append(mean_loss.item())
+            train_loss.append(mean_loss)
             learning_rate.append(lr)
             val_dice.append(dice)
             print(val_info)
@@ -156,11 +167,14 @@ def main(args):
 
             if args.save_best is True:
                 if best_dice < val_dice[-1]:
-                    torch.save(save_file, "save_weights/best_model.pth")
+                    torch.save(save_file, os.path.join(log_dir,
+                                                       "best_model_{}.pth".format(args.backbone)))
                     best_dice = val_dice[-1]
+                    print('save best dice {}'.format(val_dice[-1]))
             else:
-                torch.save(save_file, "save_weights/dice_{}.pth".format(dice))
-
+                torch.save(save_file, os.path.join(log_dir,
+                                                   "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
+        print("---------End Freeze Train---------")
     # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #  second unfrozen backbone and train all network     #
     # 解冻前置特征提取网络权重（backbone），接着训练整个网络权重   #
@@ -187,13 +201,15 @@ def main(args):
 
     UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume else args.Freeze_Epoch + 1
 
+    print("---------start UnFreeze Train---------")
     for epoch in range(UnFreeze_start_Epoch, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
         set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch)
         mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
-                                        print_freq=int((num_train / args.Freeze_batch_size) // 5), scaler=scaler)
+                                        print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler,
+                                        cls_weights=args.cls_weights)
         confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
         val_info = str(confmat)
-        train_loss.append(mean_loss.item())
+        train_loss.append(mean_loss)
         learning_rate.append(lr)
         val_dice.append(dice)
         print(val_info)
@@ -216,11 +232,15 @@ def main(args):
 
         if args.save_best is True:
             if best_dice < val_dice[-1]:
-                torch.save(save_file, "save_weights/best_model.pth")
+                torch.save(save_file, os.path.join(log_dir,
+                                                   "best_model_{}.pth".format(args.backbone)))
                 best_dice = val_dice[-1]
+                print('save best dice {}'.format(val_dice[-1]))
         else:
-            torch.save(save_file, "save_weights/dice_{}.pth".format(dice))
+            torch.save(save_file, os.path.join(log_dir,
+                                               "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
 
+    print("---------End UnFreeze Train---------")
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print("training time {}".format(total_time_str))
@@ -233,14 +253,15 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training parameter setting')
-    parser.add_argument('--backbone', type=str, default='vgg')
-    parser.add_argument('--save_dir', type=str, default="weights")
+    parser.add_argument('--backbone', type=str, default='res50')
+    parser.add_argument('--save_dir', type=str, default="./weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
     parser.add_argument('--GPU', type=int, default=6, help='GPU_ID')
-    parser.add_argument('--train', type=str, default=r"weights/train.txt", help="train_txt_path")
+    parser.add_argument('--size', type=int, default=256, help='pic size')
+    parser.add_argument('--train', type=str, default=r"weights/val.txt", help="train_txt_path")
     parser.add_argument('--val', type=str, default=r"weights/val.txt", help="val_txt_path")
-    parser.add_argument('--optimizer_type_Freeze', type=str, default='adam')
-    parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam')
+    parser.add_argument('--optimizer_type_Freeze', type=str, default='adam', help='adam or sgd')
+    parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam', help='adam or sgd')
     parser.add_argument('--num_classes', type=int, default=3)
     parser.add_argument('--Freeze_batch_size', type=int, default=12)
     parser.add_argument('--UnFreeze_batch_size', type=int, default=24)
@@ -259,6 +280,9 @@ if __name__ == '__main__':
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
     parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
     parser.add_argument('--amp', default=True, action='store_true', help="amp or Not")
+    parser.add_argument('--save_best', default=True, action='store_true', help="save best or save all")
+    parser.add_argument('--bilinear', default=False, action='store_true', help="bilinear or conv")
+    parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
     args = parser.parse_args()
 
     main(args)

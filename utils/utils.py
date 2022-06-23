@@ -1,8 +1,13 @@
+import colorsys
 import math
 from functools import partial
 
 import torch
+import torchvision
+from torchvision.transforms import functional as F
 import utils.transforms as T
+from net.EfficientNet_unet import EfficientNetUNet
+from net.res50_unet import Res50UNet
 
 from net.unet import UNet
 from net.vgg_unet import VGG16UNet
@@ -51,31 +56,36 @@ class SegmentationPresetTrain:
 
 
 class SegmentationPresetEval:
-    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), size=480):
+        self.size = size
         self.transforms = T.Compose([
             T.ToTensor(),
             T.Normalize(mean=mean, std=std),
         ])
 
     def __call__(self, img, target):
+        img = F.resize(img, (self.size, self.size))
+        target = F.resize(target, (self.size, self.size), interpolation=torchvision.transforms.InterpolationMode.NEAREST)
         return self.transforms(img, target)
 
 
-def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)):
-    base_size = 565
-    crop_size = 480
-
+def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), crop_size=480, cb_per=1.2):
+    base_size = crop_size * cb_per
     if train:
         return SegmentationPresetTrain(base_size, crop_size, mean=mean, std=std)
     else:
-        return SegmentationPresetEval(mean=mean, std=std)
+        return SegmentationPresetEval(mean=mean, std=std, size=crop_size)
 
 
-def create_model(num_classes, backbone, pretrained):
+def create_model(num_classes, backbone, pretrained, bilinear):
     if backbone == 'vgg':
-        model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained)
+        model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
+    elif backbone == 'res50':
+        model = Res50UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
+    elif backbone == 'eff_b7':
+        model = EfficientNetUNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
     else:
-        model = UNet(in_channels=3, num_classes=num_classes, base_c=32)
+        model = UNet(in_channels=3, num_classes=num_classes, base_c=32, bilinear=bilinear)
     return model
 
 
@@ -140,3 +150,22 @@ def set_optimizer_lr(optimizer, lr_scheduler_func, epoch):
     lr = lr_scheduler_func(epoch)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+
+
+# ---------------------------------------------------#
+#   画框设置不同的颜色
+# ---------------------------------------------------#
+def get_color(num_classes):
+    if num_classes <= 21:
+        colors = [(0, 0, 0), (128, 0, 0), (0, 128, 0), (128, 128, 0), (0, 0, 128), (128, 0, 128),
+                  (0, 128, 128),
+                  (128, 128, 128), (64, 0, 0), (192, 0, 0), (64, 128, 0), (192, 128, 0), (64, 0, 128),
+                  (192, 0, 128),
+                  (64, 128, 128), (192, 128, 128), (0, 64, 0), (128, 64, 0), (0, 192, 0), (128, 192, 0),
+                  (0, 64, 128),
+                  (128, 64, 12)]
+    else:
+        hsv_tuples = [(x / num_classes, 1., 1.) for x in range(num_classes)]
+        colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
+        colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
+    return colors

@@ -19,7 +19,7 @@ class UnetDataset(Dataset):
         image_path = line[0]
         label_path = line[1]
         img = Image.open(image_path).convert('RGB')
-        mask = Image.open(label_path).convert('L')
+        mask = Image.open(label_path).convert('RGB')
 
         if self.transforms is not None:
             img, mask = self.transforms(img, mask)

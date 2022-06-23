@@ -10,6 +10,8 @@ def main(args):
     if not os.path.exists(args.save_path):
         os.mkdir(args.save_path)
     data_csv = pd.read_csv(args.csv_path)
+    data_csv = data_csv.loc[data_csv[~((data_csv['segmentation_s'] == "0") & (data_csv['segmentation_sb'] == "0") &
+                                       (data_csv['segmentation_lb'] == "0"))].index.tolist(), :]
     data_csv.index = list(range(len(data_csv)))
     num_list = random.sample(range(len(data_csv)), int(args.num_per * len(data_csv)))
     num = len(num_list)

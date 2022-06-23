@@ -62,7 +62,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
 
 
 class MobileV3Unet(nn.Module):
-    def __init__(self, num_classes, pretrain_backbone: bool = False):
+    def __init__(self, num_classes, pretrain_backbone: bool = False, bilinear: bool = True):
         super(MobileV3Unet, self).__init__()
         backbone = mobilenet_v3_large(pretrained=pretrain_backbone)
 
@@ -79,13 +79,13 @@ class MobileV3Unet(nn.Module):
         self.backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
 
         c = self.stage_out_channels[4] + self.stage_out_channels[3]
-        self.up1 = Up(c, self.stage_out_channels[3])
+        self.up1 = Up(c, self.stage_out_channels[3], bilinear=bilinear)
         c = self.stage_out_channels[3] + self.stage_out_channels[2]
-        self.up2 = Up(c, self.stage_out_channels[2])
+        self.up2 = Up(c, self.stage_out_channels[2], bilinear=bilinear)
         c = self.stage_out_channels[2] + self.stage_out_channels[1]
-        self.up3 = Up(c, self.stage_out_channels[1])
+        self.up3 = Up(c, self.stage_out_channels[1], bilinear=bilinear)
         c = self.stage_out_channels[1] + self.stage_out_channels[0]
-        self.up4 = Up(c, self.stage_out_channels[0])
+        self.up4 = Up(c, self.stage_out_channels[0], bilinear=bilinear)
         self.conv = OutConv(self.stage_out_channels[0], num_classes=num_classes)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
