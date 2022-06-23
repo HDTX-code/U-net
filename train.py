@@ -100,7 +100,7 @@ def main(args):
     lr_scheduler_func_Freeze, Init_lr_fit_Freeze, Min_lr_fit_Freeze = get_lr_fun(args.optimizer_type_Freeze,
                                                                                  args.Freeze_batch_size,
                                                                                  args.Init_lr,
-                                                                                 args.Init_lr * 0.01,
+                                                                                 args.Init_lr * 0.5,
                                                                                  args.Freeze_Epoch,
                                                                                  args.lr_decay_type_Freeze)
     lr_scheduler_func_UnFreeze, Init_lr_fit_UnFreeze, Min_lr_fit_UnFreeze = get_lr_fun(args.optimizer_type_UnFreeze,
@@ -264,7 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('--Freeze_batch_size', type=int, default=12)
     parser.add_argument('--UnFreeze_batch_size', type=int, default=24)
     parser.add_argument('--aspect_ratio_group_factor', type=int, default=3)
-    parser.add_argument('--lr_decay_type_Freeze', type=str, default='cos', help="'step' or 'cos'")
+    parser.add_argument('--lr_decay_type_Freeze', type=str, default='step', help="'step' or 'cos'")
     parser.add_argument('--lr_decay_type_UnFreeze', type=str, default='cos', help="'step' or 'cos'")
     parser.add_argument('--num_workers', type=int, default=24, help="num_workers")
     parser.add_argument('--Init_lr', type=float, default=1e-4, help="max lr")
