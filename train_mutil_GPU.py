@@ -102,16 +102,18 @@ def main(args):
         # 获取lr下降函数
         lr_scheduler_func_Freeze, Init_lr_fit_Freeze, Min_lr_fit_Freeze = get_lr_fun(args.optimizer_type_Freeze,
                                                                                      args.Freeze_batch_size,
-                                                                                     args.Init_lr,
-                                                                                     args.Init_lr * 0.01,
+                                                                                     args.Init_lr_Freeze,
+                                                                                     args.Min_lr_Freeze,
                                                                                      args.Freeze_Epoch,
-                                                                                     args.lr_decay_type_Freeze)
+                                                                                     args.lr_decay_type_Freeze,
+                                                                                     isUnFreeze=False)
         lr_scheduler_func_UnFreeze, Init_lr_fit_UnFreeze, Min_lr_fit_UnFreeze = get_lr_fun(args.optimizer_type_UnFreeze,
                                                                                            args.UnFreeze_batch_size,
-                                                                                           args.Init_lr,
-                                                                                           args.Init_lr * 0.01,
+                                                                                           args.Init_lr_UnFreeze,
+                                                                                           args.Min_lr_UnFreeze,
                                                                                            args.UnFreeze_Epoch,
-                                                                                           args.lr_decay_type_UnFreeze)
+                                                                                           args.lr_decay_type_UnFreeze,
+                                                                                           isUnFreeze=True)
 
         # 记录loss lr map
         train_loss = []
@@ -267,7 +269,10 @@ if __name__ == '__main__':
     parser.add_argument('--lr_decay_type_Freeze', type=str, default='cos', help="'step' or 'cos'")
     parser.add_argument('--lr_decay_type_UnFreeze', type=str, default='cos', help="'step' or 'cos'")
     parser.add_argument('--num_workers', type=int, default=24, help="num_workers")
-    parser.add_argument('--Init_lr', type=float, default=1e-4, help="max lr")
+    parser.add_argument('--Init_lr_Freeze', type=float, default=1e-4, help="max lr Freeze")
+    parser.add_argument('--Min_lr_Freeze', type=float, default=1e-5, help="min lr Freeze")
+    parser.add_argument('--Init_lr_UnFreeze', type=float, default=1e-4, help="max lr UnFreeze")
+    parser.add_argument('--Min_lr_UnFreeze', type=float, default=1e-6, help="min lr Freeze")
     parser.add_argument('--momentum', type=float, default=0.9, help="momentum")
     parser.add_argument('--weight_decay', type=float, default=0, help="adam is 0")
     parser.add_argument('--Freeze_Epoch', type=int, default=12, help="Freeze_Epoch")
