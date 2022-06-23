@@ -256,7 +256,7 @@ if __name__ == '__main__':
     parser.add_argument('--resume', type=str, default="", help='resume')
     parser.add_argument('--GPU', type=int, default=6, help='GPU_ID')
     parser.add_argument('--size', type=int, default=256, help='pic size')
-    parser.add_argument('--train', type=str, default=r"weights/val.txt", help="train_txt_path")
+    parser.add_argument('--train', type=str, default=r"weights/train.txt", help="train_txt_path")
     parser.add_argument('--val', type=str, default=r"weights/val.txt", help="val_txt_path")
     parser.add_argument('--optimizer_type_Freeze', type=str, default='adam', help='adam or sgd')
     parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam', help='adam or sgd')
