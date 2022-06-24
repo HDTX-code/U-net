@@ -63,10 +63,9 @@ def main(args):
         t_end = time_synchronized()
         print("inference time: {}".format(t_end - t_start))
 
-        predictions = F.resize(torch.stack(
-            [predictions[0, [0, item + 1], ...].argmax(0)
-             for item in range(args.num_classes)], dim=0), original_size,
-            interpolation=T.InterpolationMode.NEAREST).permute(1, 2, 0).cpu().numpy().astype(np.uint8) * 255
+        predictions = F.resize(predictions[0, ...].argmax(0), original_size,
+                               interpolation=T.InterpolationMode.NEAREST).permute(1, 2, 0).cpu().numpy().astype(
+            np.uint8) * 255
         label_img = Image.fromarray(predictions)
         show_img = Image.blend(original_img, label_img, 0.5)
         show_img.show("predict")
