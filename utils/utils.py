@@ -128,9 +128,9 @@ def get_lr_scheduler(lr_decay_type, lr, min_lr, total_iters, warmup_iters_ratio=
     return func
 
 
-def get_lr_fun(optimizer_type, batch_size, Init_lr, Min_lr, Epoch, lr_decay_type, isUnFreeze=False):
+def get_lr_fun(optimizer_type, batch_size, Init_lr, Min_lr, Epoch, lr_decay_type, Auto=False):
     # 判断当前batch_size，自适应调整学习率
-    if isUnFreeze:
+    if Auto:
         nbs = 16
         lr_limit_max = 1e-4 if optimizer_type == 'adam' else 5e-2
         lr_limit_min = 1e-4 if optimizer_type == 'adam' else 5e-4

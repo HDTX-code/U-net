@@ -103,14 +103,14 @@ def main(args):
                                                                                  args.Min_lr_Freeze,
                                                                                  args.Freeze_Epoch,
                                                                                  args.lr_decay_type_Freeze,
-                                                                                 isUnFreeze=False)
+                                                                                 Auto=False)
     lr_scheduler_func_UnFreeze, Init_lr_fit_UnFreeze, Min_lr_fit_UnFreeze = get_lr_fun(args.optimizer_type_UnFreeze,
                                                                                        args.UnFreeze_batch_size,
                                                                                        args.Init_lr_UnFreeze,
                                                                                        args.Min_lr_UnFreeze,
                                                                                        args.UnFreeze_Epoch,
                                                                                        args.lr_decay_type_UnFreeze,
-                                                                                       isUnFreeze=True)
+                                                                                       Auto=True)
 
     # 记录loss lr map
     train_loss = []
