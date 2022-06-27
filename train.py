@@ -199,11 +199,12 @@ def main(args):
         if args.amp:
             scaler.load_state_dict(checkpoint["scaler"])
 
-    UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume else args.Freeze_Epoch + 1
+    UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume != '' else args.Freeze_Epoch
+    args.Freeze_Epoch = 0 if args.resume == '' else args.Freeze_Epoch
 
     print("---------start UnFreeze Train---------")
-    for epoch in range(UnFreeze_start_Epoch, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
-        set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch)
+    for epoch in range(UnFreeze_start_Epoch + 1, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
+        set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch - 1)
         mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
                                         print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler,
                                         cls_weights=args.cls_weights)

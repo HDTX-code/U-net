@@ -104,5 +104,7 @@ class Res50UNet(nn.Module):
 
 if __name__ == '__main__':
     res = Res50UNet(21, bilinear=True)
-    print(res(torch.ones([1, 3, 224, 224]))['out'].shape)
+    res.backbone.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    print(res.backbone.conv1)
+    print(res(torch.ones([1, 1, 224, 224]))['out'].shape)
 
