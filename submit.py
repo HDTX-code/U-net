@@ -108,7 +108,9 @@ def main(args):
                            args.num_workers)
 
     # model初始化
-    model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2, pre=None)
+    model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2,
+                      pre="", pre_b=False, bilinear=args.bilinear)
+    assert os.path.exists(args.weights_path), "{} file dose not exist.".format(args.weights_path)
     model.load_state_dict(torch.load(args.weights_path, map_location='cpu')['model'])
     model.to(device)
     model.eval()
@@ -182,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--pic_path', type=str, default=r"D:\work\project\DATA\Kaggle-uw",
                         help="pic文件夹位置")
     parser.add_argument('--save_dir', type=str, default="./", help='存储文件夹位置')
+    parser.add_argument('--bilinear', default=True, action='store_true')
     args = parser.parse_args()
 
     main(args)

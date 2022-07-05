@@ -51,7 +51,8 @@ def main(args):
     print("using {} device.".format(device))
 
     # model初始化
-    model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2)
+    model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2,
+                      pre="", pre_b=False, bilinear=args.bilinear)
     model.to(device)
 
     # load train weights
@@ -116,7 +117,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Predict parameter setting')
-    parser.add_argument('--model_name', type=str, default='mit_PLD_b4')
+    parser.add_argument('--model_name', type=str, default='res50')
     parser.add_argument('--GPU', type=int, default=2, help='GPU_ID')
     parser.add_argument('--num_classes', type=int, default=3)
     parser.add_argument('--weights_path', default='weights/loss_20220704234728/best_model_mit_PLD_b4.pth', type=str,
@@ -124,7 +125,8 @@ if __name__ == '__main__':
     parser.add_argument('--pic_path', default=r"/Home/atr2/homefun/zhf/DATA/UW/", type=str, help='pic_path')
     parser.add_argument('--id', default=r'case88_day38_slice_0091', type=str, help='gt_path')
     parser.add_argument('--csv_path', type=str, default=r"/Home/atr2/homefun/zhf/DATA/UW/data_csv.csv")
-    parser.add_argument('--size', type=int, default=384, help='pic size')
+    parser.add_argument('--size', type=int, default=224, help='pic size')
+    parser.add_argument('--bilinear', default=True, action='store_true')
     args = parser.parse_args()
 
     main(args)
