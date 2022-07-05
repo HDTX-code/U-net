@@ -1,3 +1,15 @@
+# source /Home/atr2/homefun/zhf/U-net/train_sh/train.sh
+# source /devdata/home/homefun/U-net/train_sh/train.sh
 conda activate homefun
-cd homefun/zhf/U-net
-nohup python train.py --backbone 'eff_b7' --GPU 1 --Freeze_Epoch 0 --UnFreeze_Epoch 160 --UnFreeze_batch_size 36 --size 256 --resume weights/loss_20220622155335/best_model_eff_b7.pth --bilinear --cls_weights 0.1 0.9 >weights/log100.txt 2>&1 &
+# cd /devdata/home/homefun/U-net/
+cd /Home/atr2/homefun/zhf/U-net
+nohup python train.py --GPU 2 \
+                      --Freeze_batch_size 148 \
+                      --UnFreeze_batch_size 28 \
+                      --train weights/all/train.txt \
+                      --val weights/all/val.txt \
+                      --cls_weights 0.3 0.7 \
+                      --amp \
+                      --save_best \
+                      --pretrain_backbone \
+                      --bilinear > weights/logres50_1.txt 2>&1 &

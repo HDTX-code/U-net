@@ -11,7 +11,7 @@ from utils.dataset import UnetDataset
 from utils.distributed_utils import init_distributed_mode
 from utils.plot_curve import plot_loss_and_lr, plot_dice
 from utils.train_one_epoch import train_one_epoch, evaluate
-from utils.utils import get_transform, create_model, set_optimizer_lr, get_lr_fun
+from utils.utils import get_transform, set_optimizer_lr, get_lr_fun, get_model
 
 
 def main(args):
@@ -97,8 +97,8 @@ def main(args):
     print("Creating model")
     # create model num_classes equal background + foreground classesc
     # model初始化
-    model = create_model(num_classes=args.num_classes + 1, backbone=args.backbone,
-                         pretrained=args.pretrained, bilinear=args.bilinear)
+    model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2,
+                      pre=args.pretrained, pre_b=args.pretrain_backbone, bilinear=args.bilinear)
     model.to(device)
 
     if args.sync_bn:
@@ -106,7 +106,7 @@ def main(args):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
         model_without_ddp = model.module
 
         # 获取lr下降函数
@@ -116,14 +116,14 @@ def main(args):
                                                                                      args.Min_lr_Freeze,
                                                                                      args.Freeze_Epoch,
                                                                                      args.lr_decay_type_Freeze,
-                                                                                     isUnFreeze=False)
+                                                                                     Auto=True)
         lr_scheduler_func_UnFreeze, Init_lr_fit_UnFreeze, Min_lr_fit_UnFreeze = get_lr_fun(args.optimizer_type_UnFreeze,
                                                                                            args.UnFreeze_batch_size,
                                                                                            args.Init_lr_UnFreeze,
                                                                                            args.Min_lr_UnFreeze,
                                                                                            args.UnFreeze_Epoch,
                                                                                            args.lr_decay_type_UnFreeze,
-                                                                                           isUnFreeze=True)
+                                                                                           Auto=False)
 
         # 记录loss lr map
         train_loss = []
@@ -159,7 +159,7 @@ def main(args):
                     train_sampler.set_epoch(epoch - 1)
                 set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
                 mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
-                                                print_freq=int((num_train / args.Freeze_batch_size) // 5),
+                                                print_freq=int((len(gen_Freeze)) // 5),
                                                 scaler=scaler, cls_weights=args.cls_weights)
                 confmat, dice = evaluate(model, gen_val, device=device, num_classes=2)
                 val_info = str(confmat)
@@ -184,7 +184,7 @@ def main(args):
 
                     if args.save_best is True:
                         if best_dice < val_dice[-1]:
-                            torch.save(save_file, os.path.join(log_dir, "best_model.pth"))
+                            torch.save(save_file, os.path.join(log_dir, "best_model_{}.pth".format(args.model_name)))
                             print('save best dice {}'.format(val_dice[-1]))
                             best_dice = val_dice[-1]
                     else:
@@ -214,15 +214,16 @@ def main(args):
             if args.amp:
                 scaler.load_state_dict(checkpoint["scaler"])
 
-        UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume else args.Freeze_Epoch + 1
+        UnFreeze_start_Epoch = args.Init_Epoch + args.Freeze_Epoch if args.resume else args.Freeze_Epoch
+        args.Freeze_Epoch = 0 if args.resume != '' else args.Freeze_Epoch
 
         print("---------start UnFreeze Train---------")
-        for epoch in range(UnFreeze_start_Epoch, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
+        for epoch in range(UnFreeze_start_Epoch + 1, args.UnFreeze_Epoch + args.Freeze_Epoch + 1):
             if args.distributed:
-                train_sampler.set_epoch(epoch - args.Freeze_Epoch)
-            set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch)
+                train_sampler.set_epoch(epoch - args.Freeze_Epoch - 1)
+            set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
-                                            print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler,
+                                            print_freq=int((len(gen_UnFreeze)) // 5), scaler=scaler,
                                             cls_weights=args.cls_weights)
             confmat, dice = evaluate(model, gen_val, device=device, num_classes=2)
             val_info = str(confmat)
@@ -251,12 +252,12 @@ def main(args):
                 if args.save_best is True:
                     if best_dice < val_dice[-1]:
                         torch.save(save_file, os.path.join(log_dir,
-                                                           "best_model_{}.pth".format(args.backbone)))
+                                                           "best_model_{}.pth".format(args.model_name)))
                         best_dice = val_dice[-1]
                         print('save best dice {}'.format(val_dice[-1]))
                 else:
                     torch.save(save_file, os.path.join(log_dir,
-                                                       "{}_epoch_{}_dice_{}.pth".format(args.backbone, epoch, dice)))
+                                                       "{}_epoch_{}_dice_{}.pth".format(args.model_name, epoch, dice)))
         print("---------End UnFreeze Train---------")
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -270,35 +271,37 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training parameter setting')
-    parser.add_argument('--backbone', type=str, default='res50')
+    parser.add_argument('--model_name', type=str, default='res50')
     parser.add_argument('--device', default='cuda', help='device')
-    parser.add_argument('--size', type=int, default=256, help='pic size')
+    parser.add_argument('--size', type=int, default=224, help='pic size')
     parser.add_argument('--save_dir', type=str, default="weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
-    parser.add_argument('--train', type=str, default=r"weights/train.txt", help="train_txt_path")
-    parser.add_argument('--val', type=str, default=r"weights/val.txt", help="val_txt_path")
+    parser.add_argument('--train', type=str, default=r"weights/no_all/train.txt", help="train_txt_path")
+    parser.add_argument('--val', type=str, default=r"weights/no_all/val.txt", help="val_txt_path")
     parser.add_argument('--optimizer_type_Freeze', type=str, default='adam')
     parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam')
     parser.add_argument('--num_classes', type=int, default=3)
-    parser.add_argument('--Freeze_batch_size', type=int, default=26)
-    parser.add_argument('--UnFreeze_batch_size', type=int, default=18)
+    parser.add_argument('--Freeze_batch_size', type=int, default=148)
+    parser.add_argument('--UnFreeze_batch_size', type=int, default=28)
     parser.add_argument('--aspect_ratio_group_factor', type=int, default=3)
-    parser.add_argument('--lr_decay_type_Freeze', type=str, default='cos', help="'step' or 'cos'")
+    parser.add_argument('--lr_decay_type_Freeze', type=str, default='step', help="'step' or 'cos'")
     parser.add_argument('--lr_decay_type_UnFreeze', type=str, default='cos', help="'step' or 'cos'")
     parser.add_argument('--num_workers', type=int, default=24, help="num_workers")
     parser.add_argument('--Init_lr_Freeze', type=float, default=1e-4, help="max lr Freeze")
-    parser.add_argument('--Min_lr_Freeze', type=float, default=1e-5, help="min lr Freeze")
+    parser.add_argument('--Min_lr_Freeze', type=float, default=6e-5, help="min lr Freeze")
     parser.add_argument('--Init_lr_UnFreeze', type=float, default=1e-4, help="max lr UnFreeze")
     parser.add_argument('--Min_lr_UnFreeze', type=float, default=1e-6, help="min lr Freeze")
     parser.add_argument('--momentum', type=float, default=0.9, help="momentum")
     parser.add_argument('--weight_decay', type=float, default=0, help="adam is 0")
-    parser.add_argument('--Freeze_Epoch', type=int, default=24, help="Freeze_Epoch")
-    parser.add_argument('--UnFreeze_Epoch', type=int, default=48, help="UnFreeze_Epoch")
+    parser.add_argument('--Freeze_Epoch', type=int, default=30, help="Freeze_Epoch")
+    parser.add_argument('--UnFreeze_Epoch', type=int, default=180, help="UnFreeze_Epoch")
     parser.add_argument('--Init_Epoch', type=int, default=0, help="Init_Epoch")
-    parser.add_argument('--pretrained', default=False, action='store_true', help="pretrained")
-    parser.add_argument('--bilinear', default=False, action='store_true', help="bilinear or conv")
-    parser.add_argument('--save_best', default=True, action='store_true', help="save best or save all")
-    parser.add_argument('--amp', default=True, action='store_true', help="amp or Not")
+    parser.add_argument('--pretrained', default=r'', type=str)
+    parser.add_argument('--save_best', default=False, action='store_true', help="save best or save all")
+    parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
+    parser.add_argument('--amp', default=False, action='store_true', help="amp or Not")
+    parser.add_argument('--bilinear', default=False, action='store_true')
+    parser.add_argument('--pretrain_backbone', default=False, action='store_true')
     # 分布式进程数
     parser.add_argument('--world-size', default=1, type=int, help='number of distributed processes')
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')

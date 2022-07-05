@@ -4,23 +4,32 @@ import utils.distributed_utils as utils
 from utils.dice_coefficient_loss import build_target, dice_loss
 
 
+def Focal_Loss(inputs, target, cls_weights, num_classes=-100, alpha=0.5, gamma=2):
+    logpt = -nn.functional.cross_entropy(inputs, target, ignore_index=num_classes, weight=cls_weights)
+    pt = torch.exp(logpt)
+    if alpha is not None:
+        logpt *= alpha
+    loss = -((1 - pt) ** gamma) * logpt
+    loss = loss.mean()
+    return loss
+
+
 def criterion(inputs, target, loss_weight=None, num_classes: int = 2, dice: bool = True, ignore_index: int = -100):
-    losses = {}
+    loss_ce = 0
+    loss_focal = 0
+    loss_dice = 0
     for name, x in inputs.items():
         # 忽略target中值为255的像素，255的像素是目标边缘或者padding填充
-        loss = 0
         for item in range(target.shape[-1]):
-            loss += nn.functional.cross_entropy(x[:, [0, item + 1], ...], target[..., item],
-                                                ignore_index=ignore_index, weight=loss_weight)
+            loss_ce += nn.functional.cross_entropy(x[:, [2 * item, 2 * item + 1], ...], target[..., item],
+                                                   ignore_index=ignore_index, weight=loss_weight)
+            loss_focal += Focal_Loss(x[:, [2 * item, 2 * item + 1]], target[..., item],
+                                     cls_weights=loss_weight, num_classes=ignore_index)
             if dice is True:
                 dice_target = build_target(target[..., item], 2, ignore_index)
-                loss += dice_loss(x[:, [0, item + 1], ...], dice_target, multiclass=True, ignore_index=ignore_index)
-        losses[name] = loss
-
-    if len(losses) == 1:
-        return losses['out']
-
-    return losses['out'] + 0.5 * losses['aux']
+                loss_dice += dice_loss(x[:, [2 * item, 2 * item + 1], ...], dice_target,
+                                       multiclass=False, ignore_index=ignore_index)
+    return loss_ce, loss_focal, loss_dice
 
 
 def evaluate(model, data_loader, device, num_classes):
@@ -36,8 +45,9 @@ def evaluate(model, data_loader, device, num_classes):
             output = output['out']
 
             for item in range(target.shape[-1]):
-                confmat.update(target[..., item].flatten(), output[:, [0, item + 1], ...].argmax(1).flatten())
-                dice.update(output[:, [0, item + 1]], target[..., item])
+                confmat.update(target[..., item].flatten(),
+                               output[:, [2 * item, 2 * item + 1], ...].argmax(1).flatten())
+                dice.update(output[:, [2 * item, 2 * item + 1]], target[..., item])
 
         confmat.reduce_from_all_processes()
         dice.reduce_from_all_processes()
@@ -59,7 +69,11 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, c
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
-            loss = criterion(output, target, num_classes=num_classes, ignore_index=255, loss_weight=cls_weights)
+            loss_ce, loss_focal, loss_dice = criterion(output, target, num_classes=num_classes, ignore_index=255,
+                                                       loss_weight=cls_weights)
+            loss = (loss_focal.item() / (loss_ce.item() + loss_focal.item())) * loss_ce \
+                   + (loss_ce.item() / (loss_ce.item() + loss_focal.item())) * loss_focal \
+                   + loss_dice
 
         optimizer.zero_grad()
         if scaler is not None:
@@ -71,6 +85,9 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, c
             optimizer.step()
 
         lr = optimizer.param_groups[0]["lr"]
-        metric_logger.update(loss=loss.item(), lr=lr)
+        metric_logger.update(loss=loss.item(), lr=lr,
+                             loss_ce=loss_ce.item(),
+                             loss_focal=loss_focal.item(),
+                             loss_dice=loss_dice)
 
     return metric_logger.meters["loss"].global_avg, lr

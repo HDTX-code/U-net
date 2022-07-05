@@ -2,15 +2,12 @@ import colorsys
 import math
 from functools import partial
 
+import numpy as np
 import torch
 import torchvision
 from torchvision.transforms import functional as F
 import utils.transforms as T
-from net.EfficientNet_unet import EfficientNetUNet
-from net.res50_unet import Res50UNet
-
-from net.unet import UNet
-from net.vgg_unet import VGG16UNet
+from net.build_model import build
 from utils.group_by_aspect_ratio import create_aspect_ratio_groups, GroupedBatchSampler
 
 
@@ -65,7 +62,8 @@ class SegmentationPresetEval:
 
     def __call__(self, img, target):
         img = F.resize(img, (self.size, self.size))
-        target = F.resize(target, (self.size, self.size), interpolation=torchvision.transforms.InterpolationMode.NEAREST)
+        target = F.resize(target, (self.size, self.size),
+                          interpolation=torchvision.transforms.InterpolationMode.NEAREST)
         return self.transforms(img, target)
 
 
@@ -77,15 +75,10 @@ def get_transform(train, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), 
         return SegmentationPresetEval(mean=mean, std=std, size=crop_size)
 
 
-def create_model(num_classes, backbone, pretrained, bilinear):
-    if backbone == 'vgg':
-        model = VGG16UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
-    elif backbone == 'res50':
-        model = Res50UNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
-    elif backbone == 'eff_b7':
-        model = EfficientNetUNet(num_classes=num_classes, pretrain_backbone=pretrained, bilinear=bilinear)
-    else:
-        model = UNet(in_channels=3, num_classes=num_classes, base_c=32, bilinear=bilinear)
+def get_model(model_name, num_classes, pre="", pre_b=True, bilinear=True):
+    model = build(model_name=model_name, num_classes=num_classes, pretrain_backbone=pre_b, bilinear=bilinear)
+    if pre != "":
+        model = load_model(model, pre)
     return model
 
 
@@ -169,3 +162,72 @@ def get_color(num_classes):
         colors = list(map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples))
         colors = list(map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)), colors))
     return colors
+
+
+# ---------------------------------------------------#
+#   加载model
+# ---------------------------------------------------#
+def load_model(model, model_path):
+    print('Loading weights into state dict...')
+    model_dict = model.state_dict()
+    pretrained_dict = torch.load(model_path, map_location='cpu')
+    a = {}
+    no_load = 0
+    for k, v in pretrained_dict.items():
+        try:
+            if np.shape(model_dict[k]) == np.shape(v):
+                a[k] = v
+            else:
+                no_load += 1
+        except:
+            print("模型加载出错")
+            no_load = -1
+            pass
+    model_dict.update(a)
+    model.load_state_dict(model_dict)
+    print("No_load: {}".format(no_load))
+    print('Finished!')
+    return model
+
+
+def find_next(data, item):
+    day = int(data.loc[item, 'day_id'])
+    slice = int(data.loc[item, 'slice_id'])
+    case = int(data.loc[item, 'case_id'])
+    if len(data.loc[
+           data[(((data['day_id']) == day) & ((data['slice_id']) == (slice + 2)) &
+                 ((data['case_id']) == case))].index.tolist(), :]) == 1:
+        follow = data.loc[data[(((data['day_id']) == day) & ((data['slice_id']) == (slice + 2)) &
+                                ((data['case_id']) == case))].index.tolist()[0], 'id']
+    elif len(data.loc[
+             data[(((data['day_id']) == day) & ((data['slice_id']) == (slice + 1)) &
+                   ((data['case_id']) == case))].index.tolist(), :]) == 1:
+        follow = data.loc[data[(((data['day_id']) == day) & ((data['slice_id']) == (slice + 1)) &
+                                ((data['case_id']) == case))].index.tolist()[0], 'id']
+    else:
+        follow = data.loc[item, 'id']
+    return follow
+
+
+def find_last(data, item):
+    day = data.loc[item, 'day_id']
+    slice = data.loc[item, 'slice_id']
+    case = data.loc[item, 'case_id']
+    if len(data.loc[
+           data[(((data['day_id']) == day) & ((data['slice_id']) == (slice - 2)) &
+                 ((data['case_id']) == case))].index.tolist(), :]) == 1:
+        last = data.loc[data[(((data['day_id']) == day) & ((data['slice_id']) == (slice - 2)) &
+                              ((data['case_id']) == case))].index.tolist()[0], 'id']
+    elif len(data.loc[
+             data[(((data['day_id']) == day) & ((data['slice_id']) == (slice - 1)) &
+                   ((data['case_id']) == case))].index.tolist(), :]) == 1:
+        last = data.loc[data[(((data['day_id']) == day) & ((data['slice_id']) == (slice - 1)) &
+                              ((data['case_id']) == case))].index.tolist()[0], 'id']
+    else:
+        last = data.loc[item, 'id']
+    return last
+
+
+if __name__ == '__main__':
+    model = get_model("mit_PLD_b2", 21)
+    print(model)
