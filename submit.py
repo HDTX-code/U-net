@@ -69,7 +69,7 @@ def make_predict_csv(pic_path):
         case_list = os.listdir(path_root)
     else:
         path_root = os.path.join(pic_path, 'train')
-        case_list = os.listdir(path_root)
+        case_list = os.listdir(path_root)[:1]
     with tqdm(total=len(case_list)) as pbar:
         for item_case in case_list:
             for item_day in os.listdir(os.path.join(path_root, item_case)):
@@ -174,8 +174,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='submit set')
-    parser.add_argument('--model_name', type=str, default='mit_PLD_b4')
-    parser.add_argument('--size', type=int, default=384, help='pic size')
+    parser.add_argument('--model_name', type=str, default='res50')
+    parser.add_argument('--size', type=int, default=224, help='pic size')
     parser.add_argument('--num_classes', type=int, default=3)
     parser.add_argument('--batch_size', type=int, default=72)
     parser.add_argument('--num_workers', type=int, default=24, help="num_workers")

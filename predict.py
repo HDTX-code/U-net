@@ -120,10 +120,10 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default='res50')
     parser.add_argument('--GPU', type=int, default=2, help='GPU_ID')
     parser.add_argument('--num_classes', type=int, default=3)
-    parser.add_argument('--weights_path', default='weights/loss_20220704234728/best_model_mit_PLD_b4.pth', type=str,
+    parser.add_argument('--weights_path', default='weights/loss_20220705182252/best_model_res50.pth', type=str,
                         help='training weights')
     parser.add_argument('--pic_path', default=r"/Home/atr2/homefun/zhf/DATA/UW/", type=str, help='pic_path')
-    parser.add_argument('--id', default=r'case88_day38_slice_0091', type=str, help='gt_path')
+    parser.add_argument('--id', default=r'case139_day18_slice_0045', type=str, help='gt_path')
     parser.add_argument('--csv_path', type=str, default=r"/Home/atr2/homefun/zhf/DATA/UW/data_csv.csv")
     parser.add_argument('--size', type=int, default=224, help='pic size')
     parser.add_argument('--bilinear', default=True, action='store_true')
