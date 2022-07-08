@@ -146,7 +146,7 @@ def main(args):
             set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
                                             print_freq=int((num_train / args.Freeze_batch_size) // 5), scaler=scaler,
-                                            cls_weights=args.cls_weights)
+                                            cls_weights=args.cls_weights, CE=args.loss_ce, FOCAL=args.loss_focal)
             confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
             val_info = str(confmat)
             train_loss.append(mean_loss)
@@ -209,7 +209,7 @@ def main(args):
         set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch - 1)
         mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
                                         print_freq=int((num_train / args.UnFreeze_batch_size) // 5), scaler=scaler,
-                                        cls_weights=args.cls_weights)
+                                        cls_weights=args.cls_weights, CE=args.loss_ce, FOCAL=args.loss_focal)
         confmat, dice = evaluate(model, gen_val, device=device, num_classes=args.num_classes + 1)
         val_info = str(confmat)
         train_loss.append(mean_loss)
@@ -285,6 +285,8 @@ if __name__ == '__main__':
     parser.add_argument('--amp', default=False, action='store_true', help="amp or Not")
     parser.add_argument('--save_best', default=False, action='store_true', help="save best or save all")
     parser.add_argument('--bilinear', default=False, action='store_true')
+    parser.add_argument('--loss_ce', default=False, action='store_true')
+    parser.add_argument('--loss_focal', default=False, action='store_true')
     parser.add_argument('--pretrain_backbone', default=False, action='store_true')
     parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
     args = parser.parse_args()

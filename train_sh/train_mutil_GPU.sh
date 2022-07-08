@@ -16,4 +16,6 @@ train_mutil_GPU.py  --Freeze_batch_size 148 \
                     --amp \
                     --save_best \
                     --pretrain_backbone \
-                    --bilinear >weights/logres50_2.txt 2>&1 &
+                    --bilinear \
+                    --loss_ce \
+                    --loss_local >weights/logres50_2.txt 2>&1 &
