@@ -121,6 +121,8 @@ def main(args):
     start_time = time.time()
 
     print(args)
+    with open(results_file, "a") as f:
+        f.write(str(args) + '\n\n')
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #  first frozen backbone train 5 epochs                       #
     #  首先冻结前置特征提取网络权重（backbone），训练rpn以及最终预测网络部分 #
