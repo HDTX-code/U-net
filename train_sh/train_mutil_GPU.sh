@@ -18,4 +18,6 @@ train_mutil_GPU.py  --Freeze_batch_size 148 \
                     --pretrain_backbone \
                     --bilinear \
                     --loss_ce \
-                    --loss_local >weights/logres50_2.txt 2>&1 &
+                    --loss_local \
+                    --loss_iou \
+                    --loss_lv>weights/logres50_2.txt 2>&1 &

@@ -15,13 +15,14 @@ def Focal_Loss(inputs, target, cls_weights, num_classes=-100, alpha=0.5, gamma=2
     return loss
 
 
-def criterion(inputs, target, IoULoss, loss_weight=None, num_classes: int = 2, dice: bool = True,
-              ignore_index: int = -100):
+def criterion(inputs, target, IoULoss, metric_logger, loss_weight=None, CE=True, FOCAL=False, IOU=False, LV=False,
+              dice: bool = True, ignore_index: int = -100, num_classes: int = 2):
     loss_ce = 0
     loss_focal = 0
     loss_dice = 0
     loss_IoU = 0
     loss_lv = 0
+    loss = 0
 
     for name, x in inputs.items():
         # 忽略target中值为255的像素，255的像素是目标边缘或者padding填充
@@ -36,7 +37,22 @@ def criterion(inputs, target, IoULoss, loss_weight=None, num_classes: int = 2, d
                                        multiclass=False, ignore_index=ignore_index)
             loss_IoU += IoULoss(x[:, [2 * item, 2 * item + 1], ...], target[..., item])
             loss_lv += lovasz_hinge(x[:, [2 * item, 2 * item + 1], ...], target[..., item])
-    return loss_ce, loss_focal, loss_dice, loss_IoU, loss_lv
+    if dice:
+        loss += loss_dice
+    if CE:
+        loss += loss_ce
+    if FOCAL:
+        loss += loss_focal
+    if LV:
+        loss += loss_lv
+    if IOU:
+        loss += loss_IoU
+    metric_logger.update(loss_ce=loss_ce.item(),
+                         loss_focal=loss_focal.item(),
+                         loss_dice=loss_dice.item(),
+                         loss_lv=loss_lv.item(),
+                         loss_IoU=loss_IoU.item())
+    return loss
 
 
 def evaluate(model, data_loader, device, num_classes):
@@ -63,7 +79,7 @@ def evaluate(model, data_loader, device, num_classes):
 
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, cls_weights,
-                    print_freq=10, scaler=None, CE=True, FOCAL=False):
+                    print_freq=10, scaler=None, CE=True, FOCAL=False, IOU=False, LV=False):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -77,15 +93,11 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, c
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
-            loss_ce, loss_focal, loss_dice, loss_IoU, loss_lv = criterion(output, target, IoULoss,
-                                                                          num_classes=num_classes,
-                                                                          ignore_index=255,
-                                                                          loss_weight=cls_weights)
-            loss = loss_dice + loss_IoU + loss_lv
-            if CE:
-                loss += loss_ce
-            if FOCAL:
-                loss += loss_focal
+            loss = criterion(output, target, IoULoss,
+                             num_classes=num_classes,
+                             ignore_index=255,
+                             loss_weight=cls_weights,
+                             CE=CE, LV=LV, FOCAL=FOCAL, IOU=IOU, metric_logger=metric_logger)
 
         optimizer.zero_grad()
         if scaler is not None:
@@ -97,11 +109,6 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_classes, c
             optimizer.step()
 
         lr = optimizer.param_groups[0]["lr"]
-        metric_logger.update(loss=loss.item(), lr=lr,
-                             loss_ce=loss_ce.item(),
-                             loss_focal=loss_focal.item(),
-                             loss_dice=loss_dice.item(),
-                             loss_lv=loss_lv.item(),
-                             loss_IoU=loss_IoU.item())
+        metric_logger.update(loss=loss.item(), lr=lr)
 
     return metric_logger.meters["loss"].global_avg, lr

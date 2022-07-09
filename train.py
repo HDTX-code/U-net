@@ -31,7 +31,7 @@ def main(args):
     #                    训练参数设置相关准备                         #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    # torch.cuda.set_device(args.GPU)
+    torch.cuda.set_device(args.GPU)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # num_workers
     args.num_workers = min(min([os.cpu_count(), args.UnFreeze_batch_size if args.UnFreeze_batch_size > 1 else 0, 8]),
@@ -287,6 +287,8 @@ if __name__ == '__main__':
     parser.add_argument('--bilinear', default=False, action='store_true')
     parser.add_argument('--loss_ce', default=False, action='store_true')
     parser.add_argument('--loss_focal', default=False, action='store_true')
+    parser.add_argument('--loss_iou', default=False, action='store_true')
+    parser.add_argument('--loss_lv', default=False, action='store_true')
     parser.add_argument('--pretrain_backbone', default=False, action='store_true')
     parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
     args = parser.parse_args()
