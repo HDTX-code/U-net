@@ -116,14 +116,14 @@ def main(args):
                                                                                      args.Min_lr_Freeze,
                                                                                      args.Freeze_Epoch,
                                                                                      args.lr_decay_type_Freeze,
-                                                                                     Auto=True)
+                                                                                     Auto=args.Auto_Freeze)
         lr_scheduler_func_UnFreeze, Init_lr_fit_UnFreeze, Min_lr_fit_UnFreeze = get_lr_fun(args.optimizer_type_UnFreeze,
                                                                                            args.UnFreeze_batch_size,
                                                                                            args.Init_lr_UnFreeze,
                                                                                            args.Min_lr_UnFreeze,
                                                                                            args.UnFreeze_Epoch,
                                                                                            args.lr_decay_type_UnFreeze,
-                                                                                           Auto=False)
+                                                                                           Auto=args.Auto_UnFreeze)
 
         # 记录loss lr map
         train_loss = []
@@ -159,8 +159,9 @@ def main(args):
                     train_sampler.set_epoch(epoch - 1)
                 set_optimizer_lr(optimizer, lr_scheduler_func_Freeze, epoch - 1)
                 mean_loss, lr = train_one_epoch(model, optimizer, gen_Freeze, device, epoch, args.num_classes + 1,
-                                                print_freq=int((len(gen_Freeze)) // 5),
-                                                scaler=scaler, cls_weights=args.cls_weights)
+                                                print_freq=int((len(gen_Freeze)) // 5), scaler=scaler,
+                                                cls_weights=args.cls_weights, CE=args.loss_ce, FOCAL=args.loss_focal,
+                                                LV=args.loss_lv, IOU=args.loss_iou)
                 confmat, dice = evaluate(model, gen_val, device=device, num_classes=2)
                 val_info = str(confmat)
                 train_loss.append(mean_loss)
@@ -224,7 +225,8 @@ def main(args):
             set_optimizer_lr(optimizer, lr_scheduler_func_UnFreeze, epoch - args.Freeze_Epoch - 1)
             mean_loss, lr = train_one_epoch(model, optimizer, gen_UnFreeze, device, epoch, args.num_classes + 1,
                                             print_freq=int((len(gen_UnFreeze)) // 5), scaler=scaler,
-                                            cls_weights=args.cls_weights)
+                                            cls_weights=args.cls_weights, CE=args.loss_ce, FOCAL=args.loss_focal,
+                                            LV=args.loss_lv, IOU=args.loss_iou)
             confmat, dice = evaluate(model, gen_val, device=device, num_classes=2)
             val_info = str(confmat)
             train_loss.append(mean_loss)
@@ -301,6 +303,12 @@ if __name__ == '__main__':
     parser.add_argument('--cls_weights', nargs='+', type=float, default=None, help='交叉熵loss系数')
     parser.add_argument('--amp', default=False, action='store_true', help="amp or Not")
     parser.add_argument('--bilinear', default=False, action='store_true')
+    parser.add_argument('--loss_ce', default=False, action='store_true')
+    parser.add_argument('--loss_focal', default=False, action='store_true')
+    parser.add_argument('--loss_iou', default=False, action='store_true')
+    parser.add_argument('--loss_lv', default=False, action='store_true')
+    parser.add_argument('--Auto_Freeze', default=False, action='store_true')
+    parser.add_argument('--Auto_UnFreeze', default=False, action='store_true')
     parser.add_argument('--pretrain_backbone', default=False, action='store_true')
     # 分布式进程数
     parser.add_argument('--world-size', default=1, type=int, help='number of distributed processes')

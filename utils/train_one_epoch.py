@@ -15,43 +15,39 @@ def Focal_Loss(inputs, target, cls_weights, num_classes=-100, alpha=0.5, gamma=2
     return loss
 
 
-def criterion(inputs, target, IoULoss, metric_logger, loss_weight=None, CE=True, FOCAL=False, IOU=False, LV=False,
+def criterion(inputs, target, IoULoss, metric_logger, loss_weight=None, CE=True, IOU=False, LV=False, FOCAL=False,
               dice: bool = True, ignore_index: int = -100, num_classes: int = 2):
     loss_ce = 0
     loss_focal = 0
     loss_dice = 0
     loss_IoU = 0
     loss_lv = 0
-    loss = 0
 
     for name, x in inputs.items():
         # 忽略target中值为255的像素，255的像素是目标边缘或者padding填充
         for item in range(target.shape[-1]):
-            loss_ce += nn.functional.cross_entropy(x[:, [2 * item, 2 * item + 1], ...], target[..., item],
-                                                   ignore_index=ignore_index, weight=loss_weight)
-            loss_focal += Focal_Loss(x[:, [2 * item, 2 * item + 1]], target[..., item],
-                                     cls_weights=loss_weight, num_classes=ignore_index)
+            if CE:
+                loss_ce += nn.functional.cross_entropy(x[:, [2 * item, 2 * item + 1], ...], target[..., item],
+                                                       ignore_index=ignore_index, weight=loss_weight)
+            if FOCAL:
+                loss_focal += Focal_Loss(x[:, [2 * item, 2 * item + 1]], target[..., item],
+                                         cls_weights=loss_weight, num_classes=ignore_index)
             if dice is True:
                 dice_target = build_target(target[..., item], 2, ignore_index)
                 loss_dice += dice_loss(x[:, [2 * item, 2 * item + 1], ...], dice_target,
                                        multiclass=False, ignore_index=ignore_index)
-            loss_IoU += IoULoss(x[:, [2 * item, 2 * item + 1], ...], target[..., item])
-            loss_lv += lovasz_hinge(x[:, [2 * item, 2 * item + 1], ...], target[..., item])
-    if dice:
-        loss += loss_dice
-    if CE:
-        loss += loss_ce
-    if FOCAL:
-        loss += loss_focal
-    if LV:
-        loss += loss_lv
-    if IOU:
-        loss += loss_IoU
-    metric_logger.update(loss_ce=loss_ce.item(),
-                         loss_focal=loss_focal.item(),
-                         loss_dice=loss_dice.item(),
-                         loss_lv=loss_lv.item(),
-                         loss_IoU=loss_IoU.item())
+            if IOU:
+                loss_IoU += IoULoss(x[:, [2 * item, 2 * item + 1], ...], target[..., item])
+            if LV:
+                loss_lv += lovasz_hinge(x[:, [2 * item, 2 * item + 1], ...], target[..., item])
+
+    loss = loss_ce + loss_IoU + loss_dice + loss_focal + loss_lv
+    metric_logger.update(loss=loss.item(),
+                         loss_ce=loss_ce.item() if CE else 0,
+                         loss_focal=loss_focal.item() if FOCAL else 0,
+                         loss_dice=loss_dice.item() if dice else 0,
+                         loss_lv=loss_lv.item() if LV else 0,
+                         loss_IoU=loss_IoU.item() if IOU else 0)
     return loss
 
 

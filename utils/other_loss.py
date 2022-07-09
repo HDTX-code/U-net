@@ -10,11 +10,11 @@ def deal_ignore(pred, target, ignore_index):
     _, pred_ = torch.max(pred, dim=1)
     pred_ = torch.unsqueeze(pred_, dim=1)
     target_shape = target.shape
-    target = target.reshape(-1)
-    index_ignore = torch.eq(target, ignore_index)
-    target[index_ignore] = pred_.reshape(-1)[index_ignore]
-    target = target.reshape(target_shape)
-    return target
+    target_ = target.reshape(-1)
+    index_ignore = torch.eq(target_, ignore_index)
+    target_[index_ignore] = pred_.reshape(-1)[index_ignore]
+    target_1 = target_.reshape(target_shape)
+    return target_1
 
 
 class SoftIoULoss(nn.Module):
@@ -27,6 +27,7 @@ class SoftIoULoss(nn.Module):
     @staticmethod
     def to_one_hot(tensor, n_classes, device):
         n, h, w = tensor.size()
+        # one_hot = nn.functional.one_hot(tensor).permute(0, 3, 1, 2).to(device)
         one_hot = torch.zeros(n, n_classes, h, w, device=device).scatter_(1, tensor.view(n, 1, h, w), 1)
         return one_hot
 
@@ -37,9 +38,9 @@ class SoftIoULoss(nn.Module):
         N = len(input)
 
         pred = F.softmax(input, dim=1)
-        target = deal_ignore(pred, target, self.ignore_index)
+        label = deal_ignore(pred, target, self.ignore_index)
 
-        target_onehot = self.to_one_hot(target, self.n_classes, self.device)
+        target_onehot = self.to_one_hot(label, self.n_classes, self.device)
 
         # Numerator Product
         inter = pred * target_onehot
