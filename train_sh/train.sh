@@ -3,7 +3,7 @@
 conda activate homefun
 cd /devdata/home/homefun/U-net/
 #cd /Home/atr2/homefun/zhf/U-net
-nohup python train.py --GPU 0 \
+nohup python train.py --GPU 1 \
                       --Freeze_batch_size 512 \
                       --UnFreeze_batch_size 96 \
                       --train weights/all/train.txt \
@@ -17,6 +17,6 @@ nohup python train.py --GPU 0 \
                       --save_best \
                       --bilinear \
                       --loss_ce \
-                      --loss_local > weights/logres50_3.txt 2>&1 &
+                      --loss_focal > weights/logres50_3.txt 2>&1 &
 
 #                       --pretrain_backbone \

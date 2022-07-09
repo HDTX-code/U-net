@@ -31,7 +31,7 @@ def main(args):
     #                    训练参数设置相关准备                         #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    torch.cuda.set_device(args.GPU)
+    # torch.cuda.set_device(args.GPU)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # num_workers
     args.num_workers = min(min([os.cpu_count(), args.UnFreeze_batch_size if args.UnFreeze_batch_size > 1 else 0, 8]),
@@ -259,14 +259,14 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default='res50')
     parser.add_argument('--save_dir', type=str, default="./weights")
     parser.add_argument('--resume', type=str, default="", help='resume')
-    parser.add_argument('--GPU', type=int, default=0, help='GPU_ID')
-    parser.add_argument('--size', type=int, default=224, help='pic size')
-    parser.add_argument('--train', type=str, default=r"./weights/no_all/train.txt", help="train_txt_path")
-    parser.add_argument('--val', type=str, default=r"./weights/no_all/val.txt", help="val_txt_path")
+    parser.add_argument('--GPU', type=int, default=1, help='GPU_ID')
+    parser.add_argument('--size', type=int, default=320, help='pic size')
+    parser.add_argument('--train', type=str, default=r"./weights/all/val.txt", help="train_txt_path")
+    parser.add_argument('--val', type=str, default=r"./weights/all/val.txt", help="val_txt_path")
     parser.add_argument('--optimizer_type_Freeze', type=str, default='adam', help='adam or sgd')
     parser.add_argument('--optimizer_type_UnFreeze', type=str, default='adam', help='adam or sgd')
     parser.add_argument('--num_classes', type=int, default=3)
-    parser.add_argument('--Freeze_batch_size', type=int, default=148)
+    parser.add_argument('--Freeze_batch_size', type=int, default=10)
     parser.add_argument('--UnFreeze_batch_size', type=int, default=28)
     parser.add_argument('--aspect_ratio_group_factor', type=int, default=3)
     parser.add_argument('--lr_decay_type_Freeze', type=str, default='step', help="'step' or 'cos'")

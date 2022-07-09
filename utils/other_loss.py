@@ -5,15 +5,29 @@ from torch.autograd import Variable
 import numpy as np
 
 
+# 排除掉忽略的index
+def deal_ignore(pred, target, ignore_index):
+    _, pred_ = torch.max(pred, dim=1)
+    pred_ = torch.unsqueeze(pred_, dim=1)
+    target_shape = target.shape
+    target = target.reshape(-1)
+    index_ignore = torch.eq(target, ignore_index)
+    target[index_ignore] = pred_.reshape(-1)[index_ignore]
+    target = target.reshape(target_shape)
+    return target
+
+
 class SoftIoULoss(nn.Module):
-    def __init__(self, n_classes):
+    def __init__(self, n_classes, device, ignore_index):
         super(SoftIoULoss, self).__init__()
         self.n_classes = n_classes
+        self.device = device
+        self.ignore_index = ignore_index
 
     @staticmethod
-    def to_one_hot(tensor, n_classes):
+    def to_one_hot(tensor, n_classes, device):
         n, h, w = tensor.size()
-        one_hot = torch.zeros(n, n_classes, h, w).scatter_(1, tensor.view(n, 1, h, w), 1)
+        one_hot = torch.zeros(n, n_classes, h, w, device=device).scatter_(1, tensor.view(n, 1, h, w), 1)
         return one_hot
 
     def forward(self, input, target):
@@ -23,7 +37,9 @@ class SoftIoULoss(nn.Module):
         N = len(input)
 
         pred = F.softmax(input, dim=1)
-        target_onehot = self.to_one_hot(target, self.n_classes)
+        target = deal_ignore(pred, target, self.ignore_index)
+
+        target_onehot = self.to_one_hot(target, self.n_classes, self.device)
 
         # Numerator Product
         inter = pred * target_onehot
@@ -38,7 +54,7 @@ class SoftIoULoss(nn.Module):
         loss = inter / (union + 1e-16)
 
         # Return average loss over classes and batch
-        return -loss.mean()
+        return 1 - loss.mean()
 
 
 def lovasz_grad(gt_sorted):
@@ -56,14 +72,15 @@ def lovasz_grad(gt_sorted):
     return jaccard
 
 
-def lovasz_hinge(logits, labels, ignore=None):
+def lovasz_hinge(input, labels, ignore=None):
     """
     Binary Lovasz hinge loss
-      logits: [B, H, W] Variable, logits at each pixel (between -\infty and +\infty)
+      logits: [B, C, H, W] Variable, logits at each pixel (between -\infty and +\infty)
       labels: [B, H, W] Tensor, binary ground truth masks (0 or 1)
       per_image: compute the loss per image instead of per batch
       ignore: void class id
     """
+    logits, _ = torch.max(F.softmax(input, dim=1), dim=1)
     loss = lovasz_hinge_flat(*flatten_binary_scores(logits, labels, ignore))
     return loss
 
