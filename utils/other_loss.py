@@ -7,14 +7,10 @@ import numpy as np
 
 # 排除掉忽略的index
 def deal_ignore(pred, target, ignore_index):
-    _, pred_ = torch.max(pred, dim=1)
-    pred_ = torch.unsqueeze(pred_, dim=1)
-    target_shape = target.shape
-    target_ = target.reshape(-1)
-    index_ignore = torch.eq(target_, ignore_index)
-    target_[index_ignore] = pred_.reshape(-1)[index_ignore]
-    target_1 = target_.reshape(target_shape)
-    return target_1
+    index_ignore = torch.eq(target.reshape(-1), ignore_index)
+    target_ = target.reshape(-1)[index_ignore]
+    pred_ = pred.permute([0, 2, 3, 1]).reshape([-1, 2])[index_ignore, :]
+    return pred_, target_
 
 
 class SoftIoULoss(nn.Module):
@@ -26,9 +22,9 @@ class SoftIoULoss(nn.Module):
 
     @staticmethod
     def to_one_hot(tensor, n_classes, device):
-        n, h, w = tensor.size()
+        n = tensor.size()
         # one_hot = nn.functional.one_hot(tensor).permute(0, 3, 1, 2).to(device)
-        one_hot = torch.zeros(n, n_classes, h, w, device=device).scatter_(1, tensor.view(n, 1, h, w), 1)
+        one_hot = torch.zeros([n, n_classes], device=device).scatter_(1, tensor.view(n, 1), 1)
         return one_hot
 
     def forward(self, input, target):
@@ -37,8 +33,7 @@ class SoftIoULoss(nn.Module):
 
         N = len(input)
 
-        pred = F.softmax(input, dim=1)
-        label = deal_ignore(pred, target, self.ignore_index)
+        pred, label = deal_ignore(F.softmax(input, dim=1), target, self.ignore_index)
 
         target_onehot = self.to_one_hot(label, self.n_classes, self.device)
 
