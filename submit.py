@@ -131,11 +131,9 @@ def main(args):
     # model.load_state_dict(torch.load(args.weights_path, map_location='cpu')['model'])
     # model.to(device)
     # model.eval()
-    assert len(args.model_name) == len(args.num_classes) and \
-           len(args.model_name) == len(args.weights_path) and \
-           len(args.model_name) == len(args.bilinear)
+    assert len(args.model_name) == len(args.num_classes) and len(args.model_name) == len(args.weights_path)
     model_list = [
-        make_model_list(args.model_name[i], args.num_classes[i], args.weights_path[i], args.bilinear[i], device) for i
+        make_model_list(args.model_name[i], args.num_classes[i], args.weights_path[i], args.bilinear, device) for i
         in range(len(args.model_name))]
 
     # 获取预测csv
@@ -199,13 +197,12 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='submit set')
-    parser.add_argument('--model_name', type=str, default='res50')
+    parser.add_argument('--model_name', type=str, nargs='+')
     parser.add_argument('--size', type=int, default=224, help='pic size')
-    parser.add_argument('--num_classes', type=int, default=3)
+    parser.add_argument('--num_classes', type=int, nargs='+')
     parser.add_argument('--batch_size', type=int, default=72)
     parser.add_argument('--num_workers', type=int, default=24, help="num_workers")
-    parser.add_argument('--weights_path', default='weights/loss_20220704234728/best_model_mit_PLD_b4.pth', type=str,
-                        help='training weights')
+    parser.add_argument('--weights_path', nargs='+', type=str, help='training weights')
     parser.add_argument('--pic_path', type=str, default=r"D:\work\project\DATA\Kaggle-uw",
                         help="pic文件夹位置")
     parser.add_argument('--save_dir', type=str, default="./", help='存储文件夹位置')
