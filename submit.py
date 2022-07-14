@@ -98,6 +98,23 @@ def rle_encode(img):
     return ' '.join(str(x) for x in runs)
 
 
+def make_model_list(model_name, num_classes, weights_path, bilinear, device):
+    model = get_model(model_name=model_name, num_classes=num_classes * 2,
+                      pre="", pre_b=False, bilinear=bilinear)
+    assert os.path.exists(weights_path), "{} file dose not exist.".format(weights_path)
+    model.load_state_dict(torch.load(weights_path, map_location='cpu')['model'])
+    model.to(device)
+    model.eval()
+    return model
+
+
+def make_merge(predictions_list):
+    pre_merge = np.ones(predictions_list[0].shape)
+    for predictions in predictions_list:
+        pre_merge = pre_merge * predictions
+    return pre_merge
+
+
 def main(args):
     # 设备
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -108,12 +125,18 @@ def main(args):
                            args.num_workers)
 
     # model初始化
-    model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2,
-                      pre="", pre_b=False, bilinear=args.bilinear)
-    assert os.path.exists(args.weights_path), "{} file dose not exist.".format(args.weights_path)
-    model.load_state_dict(torch.load(args.weights_path, map_location='cpu')['model'])
-    model.to(device)
-    model.eval()
+    # model = get_model(model_name=args.model_name, num_classes=args.num_classes * 2,
+    #                   pre="", pre_b=False, bilinear=args.bilinear)
+    # assert os.path.exists(args.weights_path), "{} file dose not exist.".format(args.weights_path)
+    # model.load_state_dict(torch.load(args.weights_path, map_location='cpu')['model'])
+    # model.to(device)
+    # model.eval()
+    assert len(args.model_name) == len(args.num_classes) and \
+           len(args.model_name) == len(args.weights_path) and \
+           len(args.model_name) == len(args.bilinear)
+    model_list = [
+        make_model_list(args.model_name[i], args.num_classes[i], args.weights_path[i], args.bilinear[i], device) for i
+        in range(len(args.model_name))]
 
     # 获取预测csv
     class_df = make_predict_csv(args.pic_path)
@@ -142,12 +165,14 @@ def main(args):
     with tqdm(total=len(gen), mininterval=0.3) as pbar:
         for item_img, item_size, item in gen:
             with torch.no_grad():
-                prediction = model(item_img.to(device))['out']
-                for item_batch in range(prediction.shape[0]):
-                    predictions = F.resize(torch.stack(
+                prediction_list = [model(item_img.to(device))['out'] for model in model_list]
+                for item_batch in range(prediction_list[0].shape[0]):
+                    predictions_list = [F.resize(torch.stack(
                         [prediction[item_batch][[2 * item_C, 2 * item_C + 1], ...].argmax(0)
                          for item_C in range(args.num_classes)], dim=0), item_size[item_batch],
-                        interpolation=transforms.InterpolationMode.NEAREST).permute(1, 2, 0).cpu().numpy()
+                        interpolation=transforms.InterpolationMode.NEAREST).permute(1, 2, 0).cpu().numpy() for
+                                        prediction in prediction_list]
+                    predictions = make_merge(predictions_list)
                     for item_class in range(predictions.shape[-1]):
                         if not (predictions[..., item_class] == 0).all():
                             list_item = predictions[..., item_class]
