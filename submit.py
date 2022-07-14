@@ -131,7 +131,7 @@ def main(args):
     # model.load_state_dict(torch.load(args.weights_path, map_location='cpu')['model'])
     # model.to(device)
     # model.eval()
-    assert len(args.model_name) == len(args.num_classes) and len(args.model_name) == len(args.weights_path)
+    assert len(args.model_name) == len(args.weights_path)
     model_list = [
         make_model_list(args.model_name[i], args.num_classes, args.weights_path[i], args.bilinear, device) for i
         in range(len(args.model_name))]
